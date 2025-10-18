@@ -1,2 +1,2 @@
 # subreverse
-Reverse finder through subtitles
+Search engine through pairs of subtitles.
