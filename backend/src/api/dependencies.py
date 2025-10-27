@@ -8,6 +8,12 @@ from infrastructure.database.mongodb import (
     MongoDBUserRepository,
     MongoDBConnection
 )
+from infrastructure.database.subtitle_mongo_repo import (
+    MongoDBSubtitlePairRepository,
+    MongoDBIdiomRepository,
+    MongoDBQuoteRepository,
+    MongoDBStatsRepository
+)
 from infrastructure.database.postgresql import (
     PostgreSQLPairRepository,
     PostgreSQLUserRepository,
@@ -21,11 +27,16 @@ from domain.interfaces import (
     ISearchEngine,
     IUserRepository,
     IPasswordHandler,
-    IJWTHandler
+    IJWTHandler,
+    ISubtitlePairRepository,
+    IIdiomRepository,
+    IQuoteRepository,
+    IStatsRepository
 )
 from domain.entities import User
 from application.services import PairService
 from application.auth_service import AuthService
+from application.subtitle_service import SubtitlePairService
 
 
 # Global connection instances
@@ -217,3 +228,56 @@ async def get_current_user_optional(
         return user
     except Exception:
         return None
+
+
+# Subtitle service dependencies
+
+async def get_subtitle_pair_repository() -> ISubtitlePairRepository:
+    """Dependency injection for subtitle pair repository."""
+    if not _mongodb_connection:
+        raise RuntimeError("MongoDB connection not initialized")
+    db = _mongodb_connection.get_database()
+    return MongoDBSubtitlePairRepository(db)
+
+
+async def get_idiom_repository() -> IIdiomRepository:
+    """Dependency injection for idiom repository."""
+    if not _mongodb_connection:
+        raise RuntimeError("MongoDB connection not initialized")
+    db = _mongodb_connection.get_database()
+    return MongoDBIdiomRepository(db)
+
+
+async def get_quote_repository() -> IQuoteRepository:
+    """Dependency injection for quote repository."""
+    if not _mongodb_connection:
+        raise RuntimeError("MongoDB connection not initialized")
+    db = _mongodb_connection.get_database()
+    return MongoDBQuoteRepository(db)
+
+
+async def get_stats_repository() -> IStatsRepository:
+    """Dependency injection for stats repository."""
+    if not _mongodb_connection:
+        raise RuntimeError("MongoDB connection not initialized")
+    db = _mongodb_connection.get_database()
+    return MongoDBStatsRepository(db)
+
+
+async def get_subtitle_service(
+    pair_repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
+    idiom_repo: IIdiomRepository = Depends(get_idiom_repository),
+    quote_repo: IQuoteRepository = Depends(get_quote_repository),
+    stats_repo: IStatsRepository = Depends(get_stats_repository),
+    user_repo: IUserRepository = Depends(get_user_repository),
+    search_engine: ISearchEngine = Depends(get_search_engine)
+) -> SubtitlePairService:
+    """Dependency injection for SubtitlePairService."""
+    return SubtitlePairService(
+        pair_repo=pair_repo,
+        idiom_repo=idiom_repo,
+        quote_repo=quote_repo,
+        stats_repo=stats_repo,
+        user_repo=user_repo,
+        search_engine=search_engine
+    )

@@ -5,22 +5,59 @@ from datetime import datetime
 
 
 @dataclass
-class Pair:
-    """Core domain entity representing a Pair."""
+class SubtitlePair:
+    """Core domain entity representing a subtitle pair (en/ru)."""
     id: str
-    field1: str
-    field2: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    en: str
+    ru: str
+    file_en: Optional[str] = None
+    file_ru: Optional[str] = None
+    time_en: Optional[str] = None
+    time_ru: Optional[str] = None
+    rating: int = 0
+    category: Optional[str] = None
+    seq_id: Optional[int] = None
 
     def __post_init__(self):
         """Validate entity invariants."""
         if not self.id:
-            raise ValueError("Pair ID cannot be empty")
-        if not self.field1:
-            raise ValueError("Field1 cannot be empty")
-        if self.field2 < 0:
-            raise ValueError("Field2 must be non-negative")
+            raise ValueError("SubtitlePair ID cannot be empty")
+        if not self.en and not self.ru:
+            raise ValueError("At least one of en or ru must be provided")
+
+
+@dataclass
+class Idiom:
+    """Domain entity for idiom collection."""
+    id: str
+    en: str
+    ru: str
+    pair_seq_id: Optional[int] = None
+    rating: int = 0
+    filename: Optional[str] = None
+    time: Optional[str] = None
+    owner_username: Optional[str] = None
+
+
+@dataclass
+class Quote:
+    """Domain entity for quote collection."""
+    id: str
+    en: str
+    ru: str
+    pair_seq_id: Optional[int] = None
+    rating: int = 0
+    filename: Optional[str] = None
+    time: Optional[str] = None
+    owner_username: Optional[str] = None
+
+
+@dataclass
+class SystemStats:
+    """Domain entity for system statistics."""
+    total: int
+    files_en: list[str]
+    updated_at: Optional[datetime] = None
 
 
 @dataclass

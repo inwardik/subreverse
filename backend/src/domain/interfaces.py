@@ -1,40 +1,85 @@
 """Repository interfaces - abstractions for data access."""
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from .entities import Pair, User
+from .entities import SubtitlePair, User, Idiom, Quote, SystemStats
 
 
-class IPairRepository(ABC):
-    """Abstract repository interface for Pair entities."""
+class ISubtitlePairRepository(ABC):
+    """Abstract repository interface for SubtitlePair entities."""
 
     @abstractmethod
-    async def get_all(self) -> List[Pair]:
-        """Retrieve all pairs from storage."""
+    async def get_all(self) -> List[SubtitlePair]:
+        """Retrieve all subtitle pairs from storage."""
         pass
 
     @abstractmethod
-    async def get_by_id(self, pair_id: str) -> Optional[Pair]:
-        """Retrieve a pair by its ID."""
+    async def get_by_id(self, pair_id: str) -> Optional[SubtitlePair]:
+        """Retrieve a subtitle pair by its ID."""
         pass
 
     @abstractmethod
-    async def create(self, pair: Pair) -> Pair:
-        """Create a new pair."""
+    async def get_by_seq_id(self, seq_id: int) -> Optional[SubtitlePair]:
+        """Retrieve a subtitle pair by its sequence ID."""
         pass
 
     @abstractmethod
-    async def update(self, pair: Pair) -> Optional[Pair]:
-        """Update an existing pair."""
+    async def get_random(self) -> Optional[SubtitlePair]:
+        """Retrieve a random subtitle pair."""
+        pass
+
+    @abstractmethod
+    async def get_neighbor(self, pair_id: str, offset: int) -> Optional[SubtitlePair]:
+        """Get neighbor pair by offset (temporal navigation within same file)."""
+        pass
+
+    @abstractmethod
+    async def create(self, pair: SubtitlePair) -> SubtitlePair:
+        """Create a new subtitle pair."""
+        pass
+
+    @abstractmethod
+    async def create_many(self, pairs: List[SubtitlePair]) -> int:
+        """Create many subtitle pairs. Returns count inserted."""
+        pass
+
+    @abstractmethod
+    async def update(self, pair: SubtitlePair) -> Optional[SubtitlePair]:
+        """Update an existing subtitle pair."""
+        pass
+
+    @abstractmethod
+    async def update_rating(self, pair_id: str, delta: int) -> Optional[SubtitlePair]:
+        """Update rating by delta. Returns updated pair."""
+        pass
+
+    @abstractmethod
+    async def update_category(self, pair_id: str, category: Optional[str]) -> Optional[SubtitlePair]:
+        """Update category. Returns updated pair."""
         pass
 
     @abstractmethod
     async def delete(self, pair_id: str) -> bool:
-        """Delete a pair by ID."""
+        """Delete a subtitle pair by ID."""
         pass
 
     @abstractmethod
     async def delete_all(self) -> int:
-        """Delete all pairs and return count of deleted items."""
+        """Delete all subtitle pairs and return count of deleted items."""
+        pass
+
+    @abstractmethod
+    async def clear_duplicates(self) -> int:
+        """Remove duplicate pairs. Returns count deleted."""
+        pass
+
+    @abstractmethod
+    async def count_total(self) -> int:
+        """Count total number of pairs."""
+        pass
+
+    @abstractmethod
+    async def get_distinct_files_en(self) -> List[str]:
+        """Get list of distinct en filenames."""
         pass
 
 
@@ -42,12 +87,17 @@ class ISearchEngine(ABC):
     """Abstract interface for search functionality."""
 
     @abstractmethod
-    async def index_pair(self, pair: Pair) -> None:
+    async def index_pair(self, pair: SubtitlePair) -> None:
         """Index a pair for searching."""
         pass
 
     @abstractmethod
-    async def search_pairs(self, query: str) -> List[str]:
+    async def index_many(self, pairs: List[SubtitlePair]) -> int:
+        """Index many pairs. Returns count indexed."""
+        pass
+
+    @abstractmethod
+    async def search_pairs(self, query: str, limit: int = 100) -> List[str]:
         """Search pairs and return list of IDs."""
         pass
 
@@ -59,6 +109,53 @@ class ISearchEngine(ABC):
     @abstractmethod
     async def delete_all_indices(self) -> None:
         """Clear all search indices."""
+        pass
+
+    @abstractmethod
+    async def reindex_all(self, pairs: List[SubtitlePair]) -> int:
+        """Reindex all pairs. Returns count indexed."""
+        pass
+
+
+class IIdiomRepository(ABC):
+    """Abstract repository interface for Idiom entities."""
+
+    @abstractmethod
+    async def get_recent(self, limit: int = 10) -> List[Idiom]:
+        """Get most recent idioms."""
+        pass
+
+    @abstractmethod
+    async def upsert(self, idiom: Idiom) -> Idiom:
+        """Insert or update idiom."""
+        pass
+
+
+class IQuoteRepository(ABC):
+    """Abstract repository interface for Quote entities."""
+
+    @abstractmethod
+    async def get_recent(self, limit: int = 10) -> List[Quote]:
+        """Get most recent quotes."""
+        pass
+
+    @abstractmethod
+    async def upsert(self, quote: Quote) -> Quote:
+        """Insert or update quote."""
+        pass
+
+
+class IStatsRepository(ABC):
+    """Abstract repository interface for SystemStats."""
+
+    @abstractmethod
+    async def get_latest(self) -> Optional[SystemStats]:
+        """Get latest stats."""
+        pass
+
+    @abstractmethod
+    async def save(self, stats: SystemStats) -> SystemStats:
+        """Save/update stats."""
         pass
 
 

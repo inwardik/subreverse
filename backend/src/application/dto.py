@@ -4,34 +4,87 @@ from typing import Optional
 from datetime import datetime
 
 
-class PairCreateDTO(BaseModel):
-    """DTO for creating a new pair."""
-    field1: str = Field(..., min_length=1, description="First field of the pair")
-    field2: int = Field(..., ge=0, description="Second field of the pair")
-
-
-class PairUpdateDTO(BaseModel):
-    """DTO for updating a pair."""
-    field1: Optional[str] = Field(None, min_length=1)
-    field2: Optional[int] = Field(None, ge=0)
-
-
-class PairResponseDTO(BaseModel):
-    """DTO for pair response."""
-    id: str
-    field1: str
-    field2: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+class SubtitlePairResponseDTO(BaseModel):
+    """DTO for subtitle pair response."""
+    id: str = Field(alias="_id")
+    en: str
+    ru: str
+    file_en: Optional[str] = None
+    file_ru: Optional[str] = None
+    time_en: Optional[str] = None
+    time_ru: Optional[str] = None
+    rating: int = 0
+    category: Optional[str] = None
+    seq_id: Optional[int] = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
+
+
+class SubtitlePairUpdateDTO(BaseModel):
+    """DTO for updating a subtitle pair via PATCH."""
+    delta: Optional[int] = Field(None, description="Rating delta (+1 or -1)")
+    category: Optional[str] = Field(None, description="Category: idiom, quote, wrong, or null to unset")
+
+
+class IdiomResponseDTO(BaseModel):
+    """DTO for idiom response."""
+    id: str = Field(alias="_id")
+    en: str
+    ru: str
+    filename: Optional[str] = None
+    time: Optional[str] = None
+    owner_username: Optional[str] = None
+    rating: int = 0
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class QuoteResponseDTO(BaseModel):
+    """DTO for quote response."""
+    id: str = Field(alias="_id")
+    en: str
+    ru: str
+    filename: Optional[str] = None
+    time: Optional[str] = None
+    owner_username: Optional[str] = None
+    rating: int = 0
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
+
+
+class StatsResponseDTO(BaseModel):
+    """DTO for stats response."""
+    total: int
+    files_en: list[str]
+    updated_at: Optional[str] = None
 
 
 class DeleteResponseDTO(BaseModel):
     """DTO for delete operations response."""
     deleted_count: int
     message: str
+
+
+class ClearDuplicatesResponseDTO(BaseModel):
+    """DTO for clear duplicates response."""
+    duplicate_groups: int
+    documents_deleted: int
+    documents_kept_per_group: int = 1
+
+
+class UploadSummaryDTO(BaseModel):
+    """DTO for file upload summary."""
+    filename: str
+    lines_read: Optional[int] = None
+    inserted_docs: int
+    skipped_lines: Optional[int] = None
+    errors: list[str] = []
 
 
 # Auth DTOs
