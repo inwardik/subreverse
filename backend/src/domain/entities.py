@@ -7,7 +7,7 @@ from datetime import datetime
 @dataclass
 class SubtitlePair:
     """Core domain entity representing a subtitle pair (en/ru)."""
-    id: str
+    id: Optional[str]
     en: str
     ru: str
     file_en: Optional[str] = None
@@ -20,8 +20,6 @@ class SubtitlePair:
 
     def __post_init__(self):
         """Validate entity invariants."""
-        if not self.id:
-            raise ValueError("SubtitlePair ID cannot be empty")
         if not self.en and not self.ru:
             raise ValueError("At least one of en or ru must be provided")
 

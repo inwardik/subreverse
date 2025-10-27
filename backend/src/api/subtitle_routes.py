@@ -16,7 +16,7 @@ from api.dependencies import get_subtitle_service, get_current_user
 from domain.entities import User
 
 
-router = APIRouter(tags=["subtitles"])
+router = APIRouter(prefix="/api", tags=["subtitles"])
 
 
 @router.get("/get_random", response_model=SubtitlePairResponseDTO)

@@ -4,7 +4,6 @@ from typing import AsyncGenerator, Optional
 
 from infrastructure.config import settings
 from infrastructure.database.mongodb import (
-    MongoDBPairRepository,
     MongoDBUserRepository,
     MongoDBConnection
 )
@@ -14,17 +13,9 @@ from infrastructure.database.subtitle_mongo_repo import (
     MongoDBQuoteRepository,
     MongoDBStatsRepository
 )
-from infrastructure.database.postgresql import (
-    PostgreSQLPairRepository,
-    PostgreSQLUserRepository,
-    PostgreSQLConnection
-)
-from infrastructure.database.elasticsearch import ElasticsearchEngine, ElasticsearchConnection
 from infrastructure.security.password import PasswordHandler
 from infrastructure.security.jwt_handler import JWTHandler
 from domain.interfaces import (
-    IPairRepository,
-    ISearchEngine,
     IUserRepository,
     IPasswordHandler,
     IJWTHandler,
@@ -34,100 +25,42 @@ from domain.interfaces import (
     IStatsRepository
 )
 from domain.entities import User
-from application.services import PairService
 from application.auth_service import AuthService
 from application.subtitle_service import SubtitlePairService
 
 
 # Global connection instances
 _mongodb_connection: MongoDBConnection = None
-_postgresql_connection: PostgreSQLConnection = None
-_elasticsearch_connection: ElasticsearchConnection = None
 
 
 async def init_connections():
     """Initialize all database connections on startup."""
-    global _mongodb_connection, _postgresql_connection, _elasticsearch_connection
+    global _mongodb_connection
 
-    # Initialize Elasticsearch (used by both DB types)
-    _elasticsearch_connection = ElasticsearchConnection(
-        url=settings.ELASTICSEARCH_URL,
-        index_name=settings.ELASTICSEARCH_INDEX
+    # Initialize MongoDB
+    _mongodb_connection = MongoDBConnection(
+        url=settings.MONGODB_URL,
+        db_name=settings.MONGODB_DB_NAME
     )
-    await _elasticsearch_connection.connect()
-
-    # Initialize primary database based on configuration
-    if settings.DATABASE_TYPE == "mongodb":
-        _mongodb_connection = MongoDBConnection(
-            url=settings.MONGODB_URL,
-            db_name=settings.MONGODB_DB_NAME
-        )
-        await _mongodb_connection.connect()
-    else:  # postgresql
-        _postgresql_connection = PostgreSQLConnection(
-            url=settings.POSTGRESQL_URL
-        )
-        await _postgresql_connection.connect()
+    await _mongodb_connection.connect()
 
 
 async def close_connections():
     """Close all database connections on shutdown."""
-    global _mongodb_connection, _postgresql_connection, _elasticsearch_connection
-
-    if _elasticsearch_connection:
-        await _elasticsearch_connection.disconnect()
+    global _mongodb_connection
 
     if _mongodb_connection:
         await _mongodb_connection.disconnect()
-
-    if _postgresql_connection:
-        await _postgresql_connection.disconnect()
-
-
-async def get_repository() -> IPairRepository:
-    """Dependency injection for repository - returns implementation based on config."""
-    if settings.DATABASE_TYPE == "mongodb":
-        if not _mongodb_connection:
-            raise RuntimeError("MongoDB connection not initialized")
-        db = _mongodb_connection.get_database()
-        return MongoDBPairRepository(db)
-    else:  # postgresql
-        if not _postgresql_connection:
-            raise RuntimeError("PostgreSQL connection not initialized")
-        session = await _postgresql_connection.get_session()
-        return PostgreSQLPairRepository(session)
-
-
-async def get_search_engine() -> ISearchEngine:
-    """Dependency injection for search engine."""
-    if not _elasticsearch_connection:
-        raise RuntimeError("Elasticsearch connection not initialized")
-    client = _elasticsearch_connection.get_client()
-    return ElasticsearchEngine(client, settings.ELASTICSEARCH_INDEX)
-
-
-async def get_pair_service(
-    repository: IPairRepository = Depends(get_repository),
-    search_engine: ISearchEngine = Depends(get_search_engine)
-) -> PairService:
-    """Dependency injection for PairService."""
-    return PairService(repository, search_engine)
 
 
 # Auth dependencies
 
 async def get_user_repository() -> IUserRepository:
-    """Dependency injection for user repository - returns implementation based on config."""
-    if settings.DATABASE_TYPE == "mongodb":
-        if not _mongodb_connection:
-            raise RuntimeError("MongoDB connection not initialized")
-        db = _mongodb_connection.get_database()
-        return MongoDBUserRepository(db)
-    else:  # postgresql
-        if not _postgresql_connection:
-            raise RuntimeError("PostgreSQL connection not initialized")
-        session = await _postgresql_connection.get_session()
-        return PostgreSQLUserRepository(session)
+    """Dependency injection for user repository."""
+    if not _mongodb_connection:
+        raise RuntimeError("MongoDB connection not initialized")
+    db = _mongodb_connection.get_database()
+    return MongoDBUserRepository(db)
 
 
 def get_password_handler() -> IPasswordHandler:
@@ -269,8 +202,7 @@ async def get_subtitle_service(
     idiom_repo: IIdiomRepository = Depends(get_idiom_repository),
     quote_repo: IQuoteRepository = Depends(get_quote_repository),
     stats_repo: IStatsRepository = Depends(get_stats_repository),
-    user_repo: IUserRepository = Depends(get_user_repository),
-    search_engine: ISearchEngine = Depends(get_search_engine)
+    user_repo: IUserRepository = Depends(get_user_repository)
 ) -> SubtitlePairService:
     """Dependency injection for SubtitlePairService."""
     return SubtitlePairService(
@@ -279,5 +211,5 @@ async def get_subtitle_service(
         quote_repo=quote_repo,
         stats_repo=stats_repo,
         user_repo=user_repo,
-        search_engine=search_engine
+        search_engine=None
     )

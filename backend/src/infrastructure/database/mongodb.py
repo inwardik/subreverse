@@ -1,77 +1,10 @@
 """MongoDB implementation of repository."""
-from typing import List, Optional
+from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from datetime import datetime
 
-from domain.entities import Pair, User
-from domain.interfaces import IPairRepository, IUserRepository
-
-
-class MongoDBPairRepository(IPairRepository):
-    """MongoDB implementation of IPairRepository."""
-
-    def __init__(self, db: AsyncIOMotorDatabase):
-        """Initialize with MongoDB database instance."""
-        self.db = db
-        self.collection = db["pairs"]
-
-    async def get_all(self) -> List[Pair]:
-        """Retrieve all pairs from MongoDB."""
-        cursor = self.collection.find()
-        documents = await cursor.to_list(length=None)
-        return [self._document_to_entity(doc) for doc in documents]
-
-    async def get_by_id(self, pair_id: str) -> Optional[Pair]:
-        """Retrieve a pair by its ID."""
-        document = await self.collection.find_one({"_id": pair_id})
-        return self._document_to_entity(document) if document else None
-
-    async def create(self, pair: Pair) -> Pair:
-        """Create a new pair."""
-        document = self._entity_to_document(pair)
-        await self.collection.insert_one(document)
-        return pair
-
-    async def update(self, pair: Pair) -> Optional[Pair]:
-        """Update an existing pair."""
-        document = self._entity_to_document(pair)
-        result = await self.collection.replace_one(
-            {"_id": pair.id},
-            document
-        )
-        return pair if result.modified_count > 0 else None
-
-    async def delete(self, pair_id: str) -> bool:
-        """Delete a pair by ID."""
-        result = await self.collection.delete_one({"_id": pair_id})
-        return result.deleted_count > 0
-
-    async def delete_all(self) -> int:
-        """Delete all pairs and return count."""
-        result = await self.collection.delete_many({})
-        return result.deleted_count
-
-    @staticmethod
-    def _entity_to_document(pair: Pair) -> dict:
-        """Convert domain entity to MongoDB document."""
-        return {
-            "_id": pair.id,
-            "field1": pair.field1,
-            "field2": pair.field2,
-            "created_at": pair.created_at,
-            "updated_at": pair.updated_at
-        }
-
-    @staticmethod
-    def _document_to_entity(document: dict) -> Pair:
-        """Convert MongoDB document to domain entity."""
-        return Pair(
-            id=document["_id"],
-            field1=document["field1"],
-            field2=document["field2"],
-            created_at=document.get("created_at"),
-            updated_at=document.get("updated_at")
-        )
+from domain.entities import User
+from domain.interfaces import IUserRepository
 
 
 class MongoDBConnection:
@@ -100,7 +33,7 @@ class MongoDBConnection:
 
     def get_database(self) -> AsyncIOMotorDatabase:
         """Get database instance."""
-        if not self.db:
+        if self.db is None:
             raise RuntimeError("Database not connected")
         return self.db
 

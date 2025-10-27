@@ -7,7 +7,6 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from infrastructure.config import settings
-from api.routes import router
 from api.auth_routes import router as auth_router
 from api.self_routes import router as self_router
 from api.subtitle_routes import router as subtitle_router
@@ -63,7 +62,6 @@ elif os.path.isdir(FRONTEND_DIR):
 # Include routers
 app.include_router(subtitle_router)  # Subtitle endpoints (no prefix, match original API)
 app.include_router(upload_router)  # Upload endpoints (no prefix, match original API)
-app.include_router(router)
 app.include_router(auth_router)
 app.include_router(self_router)
 

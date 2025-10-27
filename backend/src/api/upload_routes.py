@@ -21,7 +21,7 @@ from domain.entities import SubtitlePair
 from infrastructure.srt_parser import parse_srt, match_cues
 
 
-router = APIRouter(tags=["uploads"])
+router = APIRouter(prefix="/api", tags=["uploads"])
 
 
 @router.post("/upload_file")
