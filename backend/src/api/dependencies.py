@@ -22,20 +22,23 @@ from domain.interfaces import (
     ISubtitlePairRepository,
     IIdiomRepository,
     IQuoteRepository,
-    IStatsRepository
+    IStatsRepository,
+    ISearchEngine
 )
 from domain.entities import User
 from application.auth_service import AuthService
 from application.subtitle_service import SubtitlePairService
+from infrastructure.elasticsearch_engine import ElasticsearchEngine
 
 
 # Global connection instances
 _mongodb_connection: MongoDBConnection = None
+_elasticsearch_engine: Optional[ISearchEngine] = None
 
 
 async def init_connections():
     """Initialize all database connections on startup."""
-    global _mongodb_connection
+    global _mongodb_connection, _elasticsearch_engine
 
     # Initialize MongoDB
     _mongodb_connection = MongoDBConnection(
@@ -44,13 +47,27 @@ async def init_connections():
     )
     await _mongodb_connection.connect()
 
+    # Initialize Elasticsearch (optional)
+    if settings.ELASTICSEARCH_URL:
+        try:
+            _elasticsearch_engine = ElasticsearchEngine(
+                es_url=settings.ELASTICSEARCH_URL,
+                index_name=settings.ELASTICSEARCH_INDEX
+            )
+        except Exception:
+            # Elasticsearch is optional, so we continue without it
+            _elasticsearch_engine = None
+
 
 async def close_connections():
     """Close all database connections on shutdown."""
-    global _mongodb_connection
+    global _mongodb_connection, _elasticsearch_engine
 
     if _mongodb_connection:
         await _mongodb_connection.disconnect()
+
+    if _elasticsearch_engine:
+        await _elasticsearch_engine.close()
 
 
 # Auth dependencies
@@ -197,12 +214,18 @@ async def get_stats_repository() -> IStatsRepository:
     return MongoDBStatsRepository(db)
 
 
+async def get_search_engine() -> Optional[ISearchEngine]:
+    """Dependency injection for search engine (optional)."""
+    return _elasticsearch_engine
+
+
 async def get_subtitle_service(
     pair_repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
     idiom_repo: IIdiomRepository = Depends(get_idiom_repository),
     quote_repo: IQuoteRepository = Depends(get_quote_repository),
     stats_repo: IStatsRepository = Depends(get_stats_repository),
-    user_repo: IUserRepository = Depends(get_user_repository)
+    user_repo: IUserRepository = Depends(get_user_repository),
+    search_engine: Optional[ISearchEngine] = Depends(get_search_engine)
 ) -> SubtitlePairService:
     """Dependency injection for SubtitlePairService."""
     return SubtitlePairService(
@@ -211,5 +234,5 @@ async def get_subtitle_service(
         quote_repo=quote_repo,
         stats_repo=stats_repo,
         user_repo=user_repo,
-        search_engine=None
+        search_engine=search_engine
     )

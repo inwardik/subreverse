@@ -82,6 +82,11 @@ class ISubtitlePairRepository(ABC):
         """Get list of distinct en filenames."""
         pass
 
+    @abstractmethod
+    async def search(self, query: str, limit: int = 100) -> List[SubtitlePair]:
+        """Search for pairs matching query in en or ru fields."""
+        pass
+
 
 class ISearchEngine(ABC):
     """Abstract interface for search functionality."""

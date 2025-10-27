@@ -258,6 +258,34 @@ class MongoDBSubtitlePairRepository(ISubtitlePairRepository):
         files.sort(key=lambda s: s.lower())
         return files
 
+    async def search(self, query: str, limit: int = 100) -> List[SubtitlePair]:
+        """Search for pairs matching query in en or ru fields."""
+        # Detect exact-phrase mode: query fully enclosed in double quotes
+        qt = query.strip()
+        is_phrase = len(qt) >= 2 and qt.startswith('"') and qt.endswith('"')
+
+        if is_phrase:
+            # Exact phrase search - remove quotes and use escaped regex
+            phrase = qt[1:-1].strip()
+            escaped = re.escape(phrase)
+            cursor = self.collection.find({
+                "$or": [
+                    {"en": {"$regex": escaped, "$options": "i"}},
+                    {"ru": {"$regex": escaped, "$options": "i"}}
+                ]
+            }).limit(limit)
+        else:
+            # Regular case-insensitive search
+            cursor = self.collection.find({
+                "$or": [
+                    {"en": {"$regex": query, "$options": "i"}},
+                    {"ru": {"$regex": query, "$options": "i"}}
+                ]
+            }).limit(limit)
+
+        docs = await cursor.to_list(length=limit)
+        return [self._doc_to_entity(doc) for doc in docs]
+
     @staticmethod
     def _entity_to_doc(pair: SubtitlePair) -> dict:
         doc = {

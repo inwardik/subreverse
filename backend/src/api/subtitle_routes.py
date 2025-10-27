@@ -147,3 +147,41 @@ async def list_quotes(
 ):
     """Return the 10 most recent quotes sorted by insertion time descending."""
     return await service.get_recent_quotes(10)
+
+
+@router.get("/search", response_model=List[SubtitlePairResponseDTO])
+async def search_pairs(
+    q: str = Query(..., min_length=1, description="Text to search across 'en' and 'ru' fields"),
+    service: SubtitlePairService = Depends(get_subtitle_service)
+):
+    """
+    Search for subtitle pairs matching the query.
+    - Searches in both 'en' and 'ru' fields (case-insensitive)
+    - Supports exact phrase search when query is enclosed in double quotes
+    - Returns up to 100 matching results
+    """
+    return await service.search_pairs(q, limit=100)
+
+
+@router.post("/index_elastic_search")
+async def reindex_elasticsearch(
+    service: SubtitlePairService = Depends(get_subtitle_service)
+):
+    """
+    Reindex all MongoDB documents into Elasticsearch.
+    Strategy: delete existing index if present, recreate with mappings, then bulk index all docs in batches.
+    Returns summary with total docs, indexed count, and elapsed time.
+    """
+    try:
+        result = await service.reindex_elasticsearch()
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reindex: {e}"
+        )

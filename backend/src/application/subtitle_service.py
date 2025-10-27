@@ -204,6 +204,66 @@ class SubtitlePairService:
         quotes = await self.quote_repo.get_recent(limit)
         return [self._quote_to_dto(q) for q in quotes]
 
+    async def search_pairs(self, query: str, limit: int = 100) -> List[SubtitlePairResponseDTO]:
+        """
+        Search for pairs matching the query.
+        - If the query is in quotes: use database search (exact phrase)
+        - Otherwise: use Elasticsearch if available, fallback to database search
+        """
+        qt = query.strip()
+        is_phrase = len(qt) >= 2 and qt.startswith('"') and qt.endswith('"')
+
+        # Use database search for quoted queries
+        if is_phrase:
+            pairs = await self.pair_repo.search(query, limit)
+            return [self._to_dto(p) for p in pairs]
+
+        # Try Elasticsearch first for non-quoted queries
+        if self.search_engine:
+            try:
+                # Search using Elasticsearch and get pair IDs
+                pair_ids = await self.search_engine.search_pairs(query, limit)
+
+                # Fetch full pairs from the repository
+                pairs = []
+                for pair_id in pair_ids:
+                    pair = await self.pair_repo.get_by_id(pair_id)
+                    if pair:
+                        pairs.append(pair)
+
+                return [self._to_dto(p) for p in pairs]
+            except Exception:
+                # Fall back to database search if Elasticsearch fails
+                pass
+
+        # Fallback to database search
+        pairs = await self.pair_repo.search(query, limit)
+        return [self._to_dto(p) for p in pairs]
+
+    async def reindex_elasticsearch(self) -> dict:
+        """Reindex all pairs into Elasticsearch."""
+        if not self.search_engine:
+            raise ValueError("Elasticsearch is not configured")
+
+        import time
+        start = time.time()
+
+        # Get all pairs from repository
+        pairs = await self.pair_repo.get_all()
+        total = len(pairs)
+
+        # Reindex all pairs
+        indexed = await self.search_engine.reindex_all(pairs)
+
+        elapsed = time.time() - start
+
+        return {
+            "index": "pairs",
+            "total_docs": total,
+            "indexed": indexed,
+            "seconds": round(elapsed, 3)
+        }
+
     @staticmethod
     def _to_dto(pair: SubtitlePair) -> SubtitlePairResponseDTO:
         return SubtitlePairResponseDTO(
