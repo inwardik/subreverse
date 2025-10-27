@@ -258,7 +258,7 @@ function Card({ item }) {
   async function fetchByOffset(baseId, delta) {
     try {
       setBusy(true)
-      const res = await fetch(`/search/${encodeURIComponent(baseId)}/?offset=${delta}`)
+      const res = await fetch(`/api/pairs/${encodeURIComponent(baseId)}/?offset=${delta}`)
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
       return await res.json()
     } finally {
@@ -495,7 +495,7 @@ function HomePage() {
         }
         return
       }
-      const res = await fetch(`/search?q=${encodeURIComponent(t)}`)
+      const res = await fetch(`/api/pairs?q=${encodeURIComponent(t)}`)
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `HTTP ${res.status}`)
@@ -658,15 +658,15 @@ function AdminPage() {
       const form = new FormData()
       form.append('file', file)
       const lower = file.name.toLowerCase()
-      const endpoint = lower.endsWith('.zip') ? '/upload_zip' : (lower.endsWith('.ndjson') ? '/import_ndjson' : '/upload_file')
+      const endpoint = lower.endsWith('.zip') ? '/api/upload_zip' : (lower.endsWith('.ndjson') ? '/import_ndjson' : '/upload_file')
       const res = await fetch(endpoint, { method: 'POST', body: form })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
       if (!res.ok) throw new Error(data?.detail || data?.message || `HTTP ${res.status}`)
-      if (endpoint === '/upload_zip' || endpoint === '/import_ndjson') {
+      if (endpoint === '/api/upload_zip' || endpoint === '/import_ndjson') {
         setSummary(data)
-        setStatus(endpoint === '/upload_zip' ? 'ZIP processed successfully' : 'NDJSON import completed')
+        setStatus(endpoint === '/api/upload_zip' ? 'ZIP processed successfully' : 'NDJSON import completed')
       } else {
         setStatus(data?.message || `Uploaded: ${file.name}`)
       }
@@ -721,7 +721,7 @@ function AdminPage() {
     if (!window.confirm('Delete all records from the database and clear Elasticsearch index?')) return
     try {
       setBusy(true)
-      const res = await fetch('/delete_all', { method: 'POST' })
+      const res = await fetch('/api/delete_all', { method: 'POST' })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }

@@ -1,4 +1,18 @@
-fastapi[all]
-pydantic-settings
-uvicorn
-python-multipart
+# FastAPI and web server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# MongoDB
+motor==3.6.0
+
+# PostgreSQL
+sqlalchemy[asyncio]==2.0.25
+asyncpg==0.29.0
+
+# Elasticsearch
+elasticsearch[async]==8.11.1
+
+# Python utilities
+python-dotenv==1.0.0

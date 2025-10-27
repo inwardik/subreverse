@@ -21,14 +21,14 @@ export default defineConfig(({ command }) => {
       },
 
       proxy: {
-        '/search': backend,
+        '/api/pairs': backend,
         '/health': backend,
         '/upload_file': backend,
-        '/upload_zip': backend,
+        '/api/upload_zip': backend,
         '/clear': backend,
         '/index_elastic_search': backend,
         '/get_random': backend,
-        '/delete_all': backend,
+        '/api/delete_all': backend,
         '/export': backend,
         '/import_ndjson': backend,
         '/stats': backend,
