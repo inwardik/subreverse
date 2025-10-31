@@ -258,7 +258,7 @@ function Card({ item }) {
   async function fetchByOffset(baseId, delta) {
     try {
       setBusy(true)
-      const res = await fetch(`/search/${encodeURIComponent(baseId)}/?offset=${delta}`)
+      const res = await fetch(`/api/search/${encodeURIComponent(baseId)}/?offset=${delta}`)
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
       return await res.json()
     } finally {
@@ -271,7 +271,7 @@ function Card({ item }) {
     if (outOfEnergy) { try { alert('No energy left') } catch {} return }
     try {
       setBusy(true)
-      const res = await fetch(`/search/${encodeURIComponent(item._id)}/?delta=${delta}`, { method: 'PATCH', headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} })
+      const res = await fetch(`/api/search/${encodeURIComponent(item._id)}/?delta=${delta}`, { method: 'PATCH', headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} })
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
       const doc = await res.json()
       if (typeof doc.rating === 'number') setRating(doc.rating)
@@ -289,7 +289,7 @@ function Card({ item }) {
     const nextCategory = (activeTag === label) ? '' : label
     try {
       setBusy(true)
-      const res = await fetch(`/search/${encodeURIComponent(item._id)}/?category=${encodeURIComponent(nextCategory)}`, { method: 'PATCH', headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} })
+      const res = await fetch(`/api/search/${encodeURIComponent(item._id)}/?category=${encodeURIComponent(nextCategory)}`, { method: 'PATCH', headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} })
       if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
       const doc = await res.json()
       setActiveTag(doc.category ?? null)
@@ -463,7 +463,7 @@ function HomePage() {
     let aborted = false
     ;(async () => {
       try {
-        const res = await fetch('/stats')
+        const res = await fetch('/api/stats')
         if (!res.ok) return
         const data = await res.json().catch(() => null)
         if (!aborted && data && typeof data.total === 'number') {
@@ -482,7 +482,7 @@ function HomePage() {
       setLoading(true); setError('')
       if (!t) {
         // Fetch a random record when search line is empty
-        const res = await fetch(`/get_random`)
+        const res = await fetch(`/api/get_random`)
         if (!res.ok) {
           const text = await res.text()
           throw new Error(text || `HTTP ${res.status}`)
@@ -495,7 +495,7 @@ function HomePage() {
         }
         return
       }
-      const res = await fetch(`/search?q=${encodeURIComponent(t)}`)
+      const res = await fetch(`/api/search?q=${encodeURIComponent(t)}`)
       if (!res.ok) {
         const text = await res.text()
         throw new Error(text || `HTTP ${res.status}`)
@@ -583,7 +583,7 @@ function IdiomsView() {
     ;(async () => {
       try {
         setLoading(true)
-        const res = await fetch('/idioms')
+        const res = await fetch('/api/idioms')
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json().catch(() => [])
         if (!aborted) setItems(Array.isArray(data) ? data : [])
@@ -658,15 +658,15 @@ function AdminPage() {
       const form = new FormData()
       form.append('file', file)
       const lower = file.name.toLowerCase()
-      const endpoint = lower.endsWith('.zip') ? '/upload_zip' : (lower.endsWith('.ndjson') ? '/import_ndjson' : '/upload_file')
+      const endpoint = lower.endsWith('.zip') ? '/api/upload_zip' : (lower.endsWith('.ndjson') ? '/api/import_ndjson' : '/api/upload_file')
       const res = await fetch(endpoint, { method: 'POST', body: form })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
       if (!res.ok) throw new Error(data?.detail || data?.message || `HTTP ${res.status}`)
-      if (endpoint === '/upload_zip' || endpoint === '/import_ndjson') {
+      if (endpoint === '/api/upload_zip' || endpoint === '/api/import_ndjson') {
         setSummary(data)
-        setStatus(endpoint === '/upload_zip' ? 'ZIP processed successfully' : 'NDJSON import completed')
+        setStatus(endpoint === '/api/upload_zip' ? 'ZIP processed successfully' : 'NDJSON import completed')
       } else {
         setStatus(data?.message || `Uploaded: ${file.name}`)
       }
@@ -682,7 +682,7 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/clear', { method: 'POST' })
+      const res = await fetch('/api/clear', { method: 'POST' })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -701,7 +701,7 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/index_elastic_search', { method: 'POST' })
+      const res = await fetch('/api/index_elastic_search', { method: 'POST' })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -721,7 +721,7 @@ function AdminPage() {
     if (!window.confirm('Delete all records from the database and clear Elasticsearch index?')) return
     try {
       setBusy(true)
-      const res = await fetch('/delete_all', { method: 'POST' })
+      const res = await fetch('/api/delete_all', { method: 'POST' })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -740,7 +740,7 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/export', { method: 'POST' })
+      const res = await fetch('/api/export', { method: 'POST' })
       if (!res.ok) {
         const text = await res.text()
         let data
@@ -776,7 +776,7 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/stats', { method: 'POST' })
+      const res = await fetch('/api/stats', { method: 'POST' })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -886,7 +886,7 @@ function ContentPage() {
     ;(async () => {
       try {
         setLoading(true)
-        const res = await fetch('/stats')
+        const res = await fetch('/api/stats')
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (!aborted) setFiles(Array.isArray(data.files_en) ? data.files_en : [])
