@@ -207,18 +207,11 @@ class SubtitlePairService:
     async def search_pairs(self, query: str, limit: int = 100) -> List[SubtitlePairResponseDTO]:
         """
         Search for pairs matching the query.
-        - If the query is in quotes: use database search (exact phrase)
-        - Otherwise: use Elasticsearch if available, fallback to database search
+        - Uses Elasticsearch for both regular and quoted searches
+        - Quoted searches use ngram analyzer for exact substring matching
+        - Falls back to database search only if Elasticsearch is unavailable or fails
         """
-        qt = query.strip()
-        is_phrase = len(qt) >= 2 and qt.startswith('"') and qt.endswith('"')
-
-        # Use database search for quoted queries
-        if is_phrase:
-            pairs = await self.pair_repo.search(query, limit)
-            return [self._to_dto(p) for p in pairs]
-
-        # Try Elasticsearch first for non-quoted queries
+        # Try Elasticsearch first (handles both regular and quoted queries)
         if self.search_engine:
             try:
                 # Search using Elasticsearch and get pair IDs

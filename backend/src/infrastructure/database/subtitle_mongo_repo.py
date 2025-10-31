@@ -21,19 +21,6 @@ class MongoDBSubtitlePairRepository(ISubtitlePairRepository):
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.collection = db["pairs"]
-        self._ensure_indexes()
-
-    def _ensure_indexes(self):
-        """Ensure indexes are created."""
-        import asyncio
-        async def create_indexes():
-            try:
-                await self.collection.create_index([("seq_id", 1)], name="seq_id_idx", unique=True, sparse=True)
-                await self.collection.create_index([("en", 1)], name="en_index")
-                await self.collection.create_index([("ru", 1)], name="ru_index")
-            except Exception:
-                pass
-        asyncio.create_task(create_indexes())
 
     async def get_all(self) -> List[SubtitlePair]:
         cursor = self.collection.find()
@@ -330,18 +317,6 @@ class MongoDBIdiomRepository(IIdiomRepository):
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.collection = db["idioms"]
-        self._ensure_indexes()
-
-    def _ensure_indexes(self):
-        import asyncio
-        async def create_indexes():
-            try:
-                await self.collection.create_index([("pair_seq_id", 1)], name="pair_seq_unique", unique=True, sparse=True)
-                await self.collection.create_index([("owner_username", 1)], name="owner_idx", sparse=True)
-                await self.collection.create_index([("rating", -1)], name="rating_idx", sparse=True)
-            except Exception:
-                pass
-        asyncio.create_task(create_indexes())
 
     async def get_recent(self, limit: int = 10) -> List[Idiom]:
         cursor = self.collection.find().sort("_id", -1).limit(limit)
@@ -386,18 +361,6 @@ class MongoDBQuoteRepository(IQuoteRepository):
     def __init__(self, db: AsyncIOMotorDatabase):
         self.db = db
         self.collection = db["quotes"]
-        self._ensure_indexes()
-
-    def _ensure_indexes(self):
-        import asyncio
-        async def create_indexes():
-            try:
-                await self.collection.create_index([("pair_seq_id", 1)], name="pair_seq_unique", unique=True, sparse=True)
-                await self.collection.create_index([("owner_username", 1)], name="owner_idx", sparse=True)
-                await self.collection.create_index([("rating", -1)], name="rating_idx", sparse=True)
-            except Exception:
-                pass
-        asyncio.create_task(create_indexes())
 
     async def get_recent(self, limit: int = 10) -> List[Quote]:
         cursor = self.collection.find().sort("_id", -1).limit(limit)

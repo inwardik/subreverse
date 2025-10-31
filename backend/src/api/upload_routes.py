@@ -338,16 +338,30 @@ async def index_db(
     repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository)
 ):
     """
-    Index all MongoDB pairs collection documents.
-    This endpoint ensures all documents are properly indexed.
-    Note: Indexes are created automatically by the repository, so this is mostly a no-op.
+    Create indexes on MongoDB collections for optimal search performance.
+    Creates indexes on 'en', 'ru', and 'seq_id' fields for the pairs collection.
     """
     try:
+        # Access the collection directly from the repository
+        collection = repo.collection
+
+        # Create indexes for fast search
+        await collection.create_index([("en", 1)], name="en_index")
+        await collection.create_index([("ru", 1)], name="ru_index")
+        await collection.create_index([("seq_id", 1)], name="seq_id_idx", unique=True, sparse=True)
+
+        # Get collection stats
         total = await repo.count_total()
+
+        # Get list of existing indexes
+        indexes = await collection.list_indexes().to_list(length=None)
+        index_names = [idx.get("name") for idx in indexes]
+
         return {
             "message": "Database indexed successfully",
             "total_docs": total,
-            "indexes": ["en", "ru", "seq_id"]
+            "indexes_created": ["en_index", "ru_index", "seq_id_idx"],
+            "all_indexes": index_names
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to index database: {e}")

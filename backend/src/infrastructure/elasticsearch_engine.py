@@ -32,17 +32,29 @@ class ElasticsearchEngine(ISearchEngine):
         if await client.indices.exists(index=self.index_name):
             return
 
-        # Create index with mappings
+        # Create index with mappings and ngram analyzer
         mappings = {
             "mappings": {
                 "properties": {
                     "en": {
                         "type": "text",
-                        "analyzer": "standard"
+                        "analyzer": "standard",
+                        "fields": {
+                            "ngram": {
+                                "type": "text",
+                                "analyzer": "ngram_analyzer"
+                            }
+                        }
                     },
                     "ru": {
                         "type": "text",
-                        "analyzer": "standard"
+                        "analyzer": "standard",
+                        "fields": {
+                            "ngram": {
+                                "type": "text",
+                                "analyzer": "ngram_analyzer"
+                            }
+                        }
                     },
                     "rating": {
                         "type": "integer"
@@ -57,7 +69,24 @@ class ElasticsearchEngine(ISearchEngine):
             },
             "settings": {
                 "number_of_shards": 1,
-                "number_of_replicas": 0
+                "number_of_replicas": 0,
+                "index.max_ngram_diff": 20,
+                "analysis": {
+                    "analyzer": {
+                        "ngram_analyzer": {
+                            "type": "custom",
+                            "tokenizer": "standard",
+                            "filter": ["lowercase", "ngram_filter"]
+                        }
+                    },
+                    "filter": {
+                        "ngram_filter": {
+                            "type": "edge_ngram",
+                            "min_gram": 3,
+                            "max_gram": 20
+                        }
+                    }
+                }
             }
         }
 
@@ -119,43 +148,85 @@ class ElasticsearchEngine(ISearchEngine):
             return 0
 
     async def search_pairs(self, query: str, limit: int = 100) -> List[str]:
-        """Search pairs and return list of IDs."""
+        """
+        Search pairs and return list of IDs.
+        - If query is in quotes: use ngram analyzer for exact substring matching
+        - Otherwise: use standard analyzer for fuzzy matching
+        """
         client = await self._get_client()
 
         # Check if index exists
         if not await client.indices.exists(index=self.index_name):
             return []
 
-        # Build search query with rating boost
-        body = {
-            "query": {
-                "function_score": {
-                    "query": {
-                        "multi_match": {
-                            "query": query,
-                            "fields": ["en^2", "ru"],
-                            "operator": "and"
-                        }
-                    },
-                    "boost_mode": "sum",
-                    "score_mode": "sum",
-                    "functions": [
-                        {
-                            "field_value_factor": {
-                                "field": "rating",
-                                "factor": 0.2,
-                                "modifier": "none",
-                                "missing": 0
+        # Detect quoted query
+        qt = query.strip()
+        is_phrase = len(qt) >= 2 and qt.startswith('"') and qt.endswith('"')
+
+        if is_phrase:
+            # Remove quotes for ngram search
+            phrase = qt[1:-1].strip()
+
+            # Use ngram fields for exact substring matching
+            body = {
+                "query": {
+                    "function_score": {
+                        "query": {
+                            "multi_match": {
+                                "query": phrase,
+                                "fields": ["en.ngram^2", "ru.ngram"],
+                                "type": "phrase"
                             }
-                        }
-                    ]
-                }
-            },
-            "size": limit
-        }
+                        },
+                        "boost_mode": "sum",
+                        "score_mode": "sum",
+                        "functions": [
+                            {
+                                "field_value_factor": {
+                                    "field": "rating",
+                                    "factor": 0.2,
+                                    "modifier": "none",
+                                    "missing": 0
+                                }
+                            }
+                        ]
+                    }
+                },
+                "size": limit,
+                "timeout": "30s"
+            }
+        else:
+            # Standard search with word matching
+            body = {
+                "query": {
+                    "function_score": {
+                        "query": {
+                            "multi_match": {
+                                "query": query,
+                                "fields": ["en^2", "ru"],
+                                "operator": "and"
+                            }
+                        },
+                        "boost_mode": "sum",
+                        "score_mode": "sum",
+                        "functions": [
+                            {
+                                "field_value_factor": {
+                                    "field": "rating",
+                                    "factor": 0.2,
+                                    "modifier": "none",
+                                    "missing": 0
+                                }
+                            }
+                        ]
+                    }
+                },
+                "size": limit,
+                "timeout": "30s"
+            }
 
         try:
-            response = await client.search(index=self.index_name, body=body)
+            response = await client.search(index=self.index_name, body=body, request_timeout=30)
             hits = response.get("hits", {}).get("hits", [])
             return [hit["_id"] for hit in hits]
         except Exception:
