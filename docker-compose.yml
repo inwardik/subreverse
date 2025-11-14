@@ -21,6 +21,19 @@ services:
       - es_data:/usr/share/elasticsearch/data
     restart: unless-stopped
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=subreverse
+      - POSTGRES_PASSWORD=subreverse
+      - POSTGRES_DB=subreverse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build:
       context: .
@@ -31,12 +44,14 @@ services:
       - MONGODB_DB_NAME=subtitles
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=subtitles
+      - POSTGRES_URL=postgresql+asyncpg://subreverse:subreverse@postgres:5432/subreverse
     ports:
       - "8000:8000"
     restart: unless-stopped
     depends_on:
       - mongo
       - elasticsearch
+      - postgres
 
   frontend:
     build:
@@ -75,4 +90,5 @@ services:
 volumes:
   mongo_data:
   es_data:
+  postgres_data:
   auto_ssl_data:

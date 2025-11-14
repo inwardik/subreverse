@@ -7,7 +7,10 @@
 ### Quick Facts
 - **Backend**: FastAPI with async Python
 - **Frontend**: React 18 + Vite (single-file SPA)
-- **Databases**: MongoDB (primary storage), Elasticsearch (full-text search)
+- **Databases**:
+  - PostgreSQL (user management with SQLAlchemy)
+  - MongoDB (subtitle pairs, idioms, quotes)
+  - Elasticsearch (full-text search)
 - **Architecture**: Onion/Layered architecture with dependency inversion
 - **Authentication**: JWT-based with energy/leveling system
 
@@ -27,7 +30,10 @@
 │   │   └── dto.py              # Data Transfer Objects (Pydantic)
 │   ├── infrastructure/      # EXTERNAL DEPENDENCIES LAYER
 │   │   ├── database/
-│   │   │   ├── mongodb.py              # DB connection + User repo
+│   │   │   ├── postgres.py             # PostgreSQL connection + User repo
+│   │   │   ├── postgres_models.py      # SQLAlchemy models
+│   │   │   ├── postgres_schemas.py     # Pydantic schemas for PostgreSQL
+│   │   │   ├── mongodb.py              # MongoDB connection (legacy User repo)
 │   │   │   └── subtitle_mongo_repo.py  # Subtitle/Idiom/Quote repos
 │   │   ├── elasticsearch_engine.py     # Search engine implementation
 │   │   ├── security/
@@ -101,6 +107,19 @@
 **Purpose**: Implement domain interfaces using external systems
 
 **Key Files**:
+- **`database/postgres.py`**:
+  - `PostgreSQLConnection` - Async SQLAlchemy engine + session manager
+  - `PostgreSQLUserRepository` - User CRUD with SQLAlchemy ORM
+  - Atomic energy updates using SQLAlchemy update statements
+  - Automatic table creation via Alembic-free migrations
+
+- **`database/postgres_models.py`**:
+  - `UserModel` - SQLAlchemy model for users table
+  - Mapped columns with type hints using SQLAlchemy 2.0 style
+
+- **`database/postgres_schemas.py`**:
+  - Pydantic schemas for validation: `UserCreateSchema`, `UserUpdateSchema`, `UserSchema`
+
 - **`database/subtitle_mongo_repo.py`** (400+ lines):
   - `MongoDBSubtitlePairRepository` - seq_id-based random selection
   - `MongoDBIdiomRepository`, `MongoDBQuoteRepository`
@@ -108,7 +127,7 @@
 
 - **`database/mongodb.py`** (160 lines):
   - `MongoDBConnection` - Async connection manager
-  - `MongoDBUserRepository` - User CRUD with atomic energy updates
+  - `MongoDBUserRepository` - DEPRECATED (migrated to PostgreSQL)
 
 - **`elasticsearch_engine.py`** (215 lines):
   - NGram analyzer for exact substring matching
@@ -281,20 +300,29 @@ Frontend
 
 ### Environment Variables (`.env.example`)
 ```bash
+# Database Configuration
 DATABASE_TYPE=mongodb
 MONGODB_URL=mongodb://localhost:27017
 MONGODB_DB_NAME=subtitles
+
+# PostgreSQL (for User management)
+POSTGRES_URL=postgresql+asyncpg://subreverse:subreverse@localhost:5432/subreverse
+
+# Elasticsearch
 ELASTICSEARCH_URL=http://localhost:9200
 ELASTICSEARCH_INDEX=pairs
+
+# JWT
 JWT_SECRET=change_me_in_production
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_SECONDS=604800  # 7 days
 ```
 
 ### Docker Services (docker-compose.yml)
-- **mongo**: Port 27017
-- **elasticsearch**: Port 9200 (security disabled for dev)
-- **backend**: Port 8000
+- **postgres**: Port 5432 (PostgreSQL 15 Alpine)
+- **mongo**: Port 27017 (MongoDB 4.4.18)
+- **elasticsearch**: Port 9200 (Elasticsearch 8.14.3, security disabled for dev)
+- **backend**: Port 8000 (FastAPI)
 - **frontend**: Port 5173 (Vite dev server)
 - **nginx**: Ports 80/443 (HTTPS configured)
 
@@ -348,22 +376,27 @@ curl -X POST http://localhost:8000/api/index_elastic_search
 }
 ```
 
-### `users` Collection
-```json
-{
-  "_id": "uuid-string",
-  "username": "john_doe",
-  "email": "john@example.com",
-  "password_hash": "sha256-hash",
-  "salt": "random-hex-string",
-  "created_at": ISODate("2024-01-01T00:00:00Z"),
-  "energy": 10,
-  "max_energy": 10,
-  "level": 1,
-  "xp": 5,
-  "role": "user",
-  "last_recharge": ISODate("2024-01-01T00:00:00Z")
-}
+### `users` Table (PostgreSQL)
+**Note**: User data has been migrated from MongoDB to PostgreSQL for better relational data support.
+
+```sql
+CREATE TABLE users (
+  id VARCHAR(36) PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  salt VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  energy INTEGER NOT NULL DEFAULT 10,
+  max_energy INTEGER NOT NULL DEFAULT 10,
+  level INTEGER NOT NULL DEFAULT 1,
+  xp INTEGER NOT NULL DEFAULT 0,
+  role VARCHAR(50) NOT NULL DEFAULT 'user',
+  last_recharge TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
 ```
 
 ### `idioms` Collection

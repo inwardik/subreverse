@@ -2,3 +2,10 @@
 /certs/fullchain.pem
 /certs/privkey.pem
 /.idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
