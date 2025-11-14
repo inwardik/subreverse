@@ -36,7 +36,9 @@ SubReverse is built with modern technologies and clean architecture principles:
 
 - **Backend**: FastAPI (Python) with Onion/Clean Architecture
 - **Frontend**: React 18 + Vite SPA
-- **Database**: MongoDB for data storage
+- **Databases**:
+  - PostgreSQL (user management with SQLAlchemy ORM)
+  - MongoDB (subtitle pairs, idioms, quotes)
 - **Search Engine**: Elasticsearch for full-text search
 - **Deployment**: Docker Compose with Nginx reverse proxy
 
@@ -175,6 +177,7 @@ npm run dev
 ```
 
 **Dependencies:**
+- PostgreSQL running on `localhost:5432`
 - MongoDB running on `localhost:27017`
 - Elasticsearch running on `localhost:9200`
 
@@ -242,6 +245,9 @@ DATABASE_TYPE=mongodb
 MONGODB_URL=mongodb://localhost:27017
 MONGODB_DB_NAME=subtitles
 
+# PostgreSQL (for User management)
+POSTGRES_URL=postgresql+asyncpg://subreverse:subreverse@localhost:5432/subreverse
+
 # Search Engine
 ELASTICSEARCH_URL=http://localhost:9200
 ELASTICSEARCH_INDEX=pairs
@@ -254,6 +260,7 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 
 ### Docker Compose Services
 
+- **postgres**: PostgreSQL 15 Alpine on port 5432
 - **mongo**: MongoDB 4.4.18 on port 27017
 - **elasticsearch**: Elasticsearch 8.14.3 on port 9200
 - **backend**: FastAPI on port 8000
@@ -293,6 +300,7 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 - Enable Elasticsearch security
 - Configure CORS to allow only your domain
 - Use HTTPS (nginx.conf includes SSL configuration)
+- Set strong PostgreSQL credentials
 - Set strong MongoDB credentials
 
 ## 🐛 Troubleshooting

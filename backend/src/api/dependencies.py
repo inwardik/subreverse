@@ -7,6 +7,10 @@ from infrastructure.database.mongodb import (
     MongoDBUserRepository,
     MongoDBConnection
 )
+from infrastructure.database.postgres import (
+    PostgreSQLUserRepository,
+    PostgreSQLConnection
+)
 from infrastructure.database.subtitle_mongo_repo import (
     MongoDBSubtitlePairRepository,
     MongoDBIdiomRepository,
@@ -33,12 +37,13 @@ from infrastructure.elasticsearch_engine import ElasticsearchEngine
 
 # Global connection instances
 _mongodb_connection: MongoDBConnection = None
+_postgres_connection: PostgreSQLConnection = None
 _elasticsearch_engine: Optional[ISearchEngine] = None
 
 
 async def init_connections():
     """Initialize all database connections on startup."""
-    global _mongodb_connection, _elasticsearch_engine
+    global _mongodb_connection, _postgres_connection, _elasticsearch_engine
 
     # Initialize MongoDB
     _mongodb_connection = MongoDBConnection(
@@ -46,6 +51,12 @@ async def init_connections():
         db_name=settings.MONGODB_DB_NAME
     )
     await _mongodb_connection.connect()
+
+    # Initialize PostgreSQL
+    _postgres_connection = PostgreSQLConnection(
+        database_url=settings.POSTGRES_URL
+    )
+    await _postgres_connection.init_db()
 
     # Initialize Elasticsearch (optional)
     if settings.ELASTICSEARCH_URL:
@@ -61,10 +72,13 @@ async def init_connections():
 
 async def close_connections():
     """Close all database connections on shutdown."""
-    global _mongodb_connection, _elasticsearch_engine
+    global _mongodb_connection, _postgres_connection, _elasticsearch_engine
 
     if _mongodb_connection:
         await _mongodb_connection.disconnect()
+
+    if _postgres_connection:
+        await _postgres_connection.close()
 
     if _elasticsearch_engine:
         await _elasticsearch_engine.close()
@@ -72,12 +86,13 @@ async def close_connections():
 
 # Auth dependencies
 
-async def get_user_repository() -> IUserRepository:
+async def get_user_repository() -> AsyncGenerator[IUserRepository, None]:
     """Dependency injection for user repository."""
-    if not _mongodb_connection:
-        raise RuntimeError("MongoDB connection not initialized")
-    db = _mongodb_connection.get_database()
-    return MongoDBUserRepository(db)
+    if not _postgres_connection:
+        raise RuntimeError("PostgreSQL connection not initialized")
+
+    async for session in _postgres_connection.get_session():
+        yield PostgreSQLUserRepository(session)
 
 
 def get_password_handler() -> IPasswordHandler:

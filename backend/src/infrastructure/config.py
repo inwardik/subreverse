@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     MONGODB_DB_NAME: str = "subtitles"
 
     # PostgreSQL settings
-    POSTGRESQL_URL: str = "postgresql+asyncpg://user:password@localhost:5432/pairs_db"
+    POSTGRES_URL: str = "postgresql+asyncpg://user:password@localhost:5432/pairs_db"
 
     # Elasticsearch settings
     ELASTICSEARCH_URL: str = "http://localhost:9200"
