@@ -33,10 +33,12 @@ class IdiomResponseDTO(BaseModel):
     id: str = Field(alias="_id")
     en: str
     ru: str
-    filename: Optional[str] = None
-    time: Optional[str] = None
-    owner_username: Optional[str] = None
-    rating: int = 0
+    title: Optional[str] = None
+    explanation: Optional[str] = None
+    source: Optional[str] = None
+    status: str = "draft"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

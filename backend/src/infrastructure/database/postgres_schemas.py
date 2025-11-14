@@ -1,6 +1,6 @@
 """Pydantic schemas for PostgreSQL models."""
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
@@ -37,3 +37,38 @@ class UserSchema(BaseModel):
     xp: int
     role: str
     last_recharge: datetime
+
+
+class IdiomCreateSchema(BaseModel):
+    """Schema for creating a new idiom."""
+    en: str = Field(..., min_length=1)
+    ru: str = Field(..., min_length=1)
+    title: Optional[str] = None
+    explanation: Optional[str] = None
+    source: Optional[str] = None
+    status: Literal["draft", "active", "deleted"] = "draft"
+
+
+class IdiomUpdateSchema(BaseModel):
+    """Schema for updating idiom fields."""
+    title: Optional[str] = None
+    en: Optional[str] = None
+    ru: Optional[str] = None
+    explanation: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[Literal["draft", "active", "deleted"]] = None
+
+
+class IdiomSchema(BaseModel):
+    """Schema for Idiom model (complete representation)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: Optional[str]
+    en: str
+    ru: str
+    explanation: Optional[str]
+    source: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime

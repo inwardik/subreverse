@@ -8,8 +8,8 @@
 - **Backend**: FastAPI with async Python
 - **Frontend**: React 18 + Vite (single-file SPA)
 - **Databases**:
-  - PostgreSQL (user management with SQLAlchemy)
-  - MongoDB (subtitle pairs, idioms, quotes)
+  - PostgreSQL (user management and idioms with SQLAlchemy)
+  - MongoDB (subtitle pairs and quotes)
   - Elasticsearch (full-text search)
 - **Architecture**: Onion/Layered architecture with dependency inversion
 - **Authentication**: JWT-based with energy/leveling system
@@ -30,11 +30,11 @@
 │   │   └── dto.py              # Data Transfer Objects (Pydantic)
 │   ├── infrastructure/      # EXTERNAL DEPENDENCIES LAYER
 │   │   ├── database/
-│   │   │   ├── postgres.py             # PostgreSQL connection + User repo
-│   │   │   ├── postgres_models.py      # SQLAlchemy models
+│   │   │   ├── postgres.py             # PostgreSQL connection + User/Idiom repos
+│   │   │   ├── postgres_models.py      # SQLAlchemy models (User, Idiom)
 │   │   │   ├── postgres_schemas.py     # Pydantic schemas for PostgreSQL
 │   │   │   ├── mongodb.py              # MongoDB connection (legacy User repo)
-│   │   │   └── subtitle_mongo_repo.py  # Subtitle/Idiom/Quote repos
+│   │   │   └── subtitle_mongo_repo.py  # Subtitle/Quote repos
 │   │   ├── elasticsearch_engine.py     # Search engine implementation
 │   │   ├── security/
 │   │   │   ├── password.py    # SHA256 password hashing
@@ -110,20 +110,23 @@
 - **`database/postgres.py`**:
   - `PostgreSQLConnection` - Async SQLAlchemy engine + session manager
   - `PostgreSQLUserRepository` - User CRUD with SQLAlchemy ORM
+  - `PostgreSQLIdiomRepository` - Idiom CRUD with status filtering
   - Atomic energy updates using SQLAlchemy update statements
   - Automatic table creation via Alembic-free migrations
 
 - **`database/postgres_models.py`**:
   - `UserModel` - SQLAlchemy model for users table
+  - `IdiomModel` - SQLAlchemy model for idioms table
   - Mapped columns with type hints using SQLAlchemy 2.0 style
 
 - **`database/postgres_schemas.py`**:
   - Pydantic schemas for validation: `UserCreateSchema`, `UserUpdateSchema`, `UserSchema`
+  - Idiom schemas: `IdiomCreateSchema`, `IdiomUpdateSchema`, `IdiomSchema`
 
 - **`database/subtitle_mongo_repo.py`** (400+ lines):
   - `MongoDBSubtitlePairRepository` - seq_id-based random selection
-  - `MongoDBIdiomRepository`, `MongoDBQuoteRepository`
-  - `MongoDBStatsRepository`
+  - `MongoDBQuoteRepository` - Quote collection management
+  - `MongoDBStatsRepository` - System statistics
 
 - **`database/mongodb.py`** (160 lines):
   - `MongoDBConnection` - Async connection manager
@@ -211,6 +214,12 @@
 - Fast path: Use seq_id for O(1) lookup
 - Slow path: Fetch all from file, sort by time
 
+### Idiom Management
+- Clicking 'idiom' button creates a new record in PostgreSQL with status='draft'
+- Idioms can be filtered by status (draft/active/deleted)
+- Source field stores the original file reference
+- Title and explanation can be added later for editorial purposes
+
 ### Search Features
 - Standard search: Word-based matching (operator: "and")
 - Quoted search: Exact phrase matching using ngram analyzer
@@ -234,8 +243,11 @@
 
 ### Adding a New Repository Method
 1. Add method signature to interface in `domain/interfaces.py`
-2. Implement in `infrastructure/database/subtitle_mongo_repo.py`
+2. Implement in appropriate repository:
+   - `infrastructure/database/postgres.py` (for User, Idiom)
+   - `infrastructure/database/subtitle_mongo_repo.py` (for SubtitlePair, Quote)
 3. Use in service layer (`application/subtitle_service.py`)
+4. Update dependency injection in `api/dependencies.py` if needed
 
 ### Adding a New Frontend Feature
 1. Add component function to `frontend/src/App.jsx`
@@ -255,27 +267,29 @@
 ## Important Implementation Details
 
 ### Authentication Flow
-1. User signs up → password hashed with salt → stored in MongoDB
+1. User signs up → password hashed with salt → stored in PostgreSQL
 2. User logs in → password verified → JWT generated (7-day expiry)
-3. Protected endpoints → JWT decoded → user loaded from DB
+3. Protected endpoints → JWT decoded → user loaded from PostgreSQL
 4. Frontend stores JWT in localStorage → sends in `Authorization: Bearer <token>`
 
-### Data Flow Example (Update Rating)
+### Data Flow Example (Update Rating with Idiom Creation)
 ```
 Frontend Card component
-    ↓ PATCH /api/search/{id}/?delta=1
+    ↓ PATCH /api/search/{id}/?category=idiom
 API Layer (subtitle_routes.py)
-    ↓ get_current_user dependency
+    ↓ get_current_user dependency (PostgreSQL)
     ↓ get_subtitle_service dependency
 Application Layer (subtitle_service.py)
     ↓ Check energy > 0
-    ↓ user_repo.update_energy(-1)
-    ↓ pair_repo.update_rating(delta)
-    ↓ Handle XP gain + level up
-Infrastructure Layer (subtitle_mongo_repo.py)
-    ↓ MongoDB atomic update
+    ↓ user_repo.update_energy(-1) → PostgreSQL
+    ↓ pair_repo.update_category("idiom") → MongoDB
+    ↓ idiom_repo.create(new_idiom) → PostgreSQL (status=draft)
+    ↓ Handle XP gain + level up → PostgreSQL
+Infrastructure Layer
+    ↓ PostgreSQL idioms table insert
+    ↓ MongoDB subtitle_pairs update
 Domain Layer (entities.py)
-    ↓ Return SubtitlePair entity
+    ↓ Return SubtitlePair + Idiom entities
 Application Layer
     ↓ Convert to SubtitlePairResponseDTO
 API Layer
@@ -399,19 +413,26 @@ CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);
 ```
 
-### `idioms` Collection
-```json
-{
-  "_id": ObjectId("..."),
-  "en": "Break a leg!",
-  "ru": "Ни пуха, ни пера!",
-  "pair_seq_id": 12345,
-  "rating": 8,
-  "filename": "movie_en.srt",
-  "time": "00:01:23,456 --> 00:01:26,789",
-  "owner_username": "john_doe"
-}
+### `idioms` Table (PostgreSQL)
+**Note**: Idiom data has been migrated from MongoDB to PostgreSQL for better structured data support and status management.
+
+```sql
+CREATE TABLE idioms (
+  id VARCHAR(36) PRIMARY KEY,
+  title VARCHAR(255),
+  en TEXT NOT NULL,
+  ru TEXT NOT NULL,
+  explanation TEXT,
+  source VARCHAR(255),
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_idioms_status ON idioms(status);
 ```
+
+**Status values**: `draft` (newly created), `active` (approved), `deleted` (soft-deleted)
 
 ### `quotes` Collection
 Same schema as `idioms`
@@ -437,7 +458,7 @@ Same schema as `idioms`
 - `GET /api/search?q={query}` - Search pairs
 - `GET /api/search/{id}/?offset_en={n}&offset_ru={m}` - Get by ID with temporal offset
 - `GET /api/stats` - System statistics
-- `GET /api/idioms?limit=50` - Recent idioms
+- `GET /api/idioms?limit=100&status=draft` - List idioms with optional status filter
 - `GET /api/quotes?limit=50` - Recent quotes
 
 ### Authenticated Endpoints
@@ -489,14 +510,15 @@ Same schema as `idioms`
 Based on codebase analysis:
 - [ ] Add comprehensive test suite
 - [ ] Implement leaderboard functionality
-- [ ] Complete quotes page UI
+- [ ] Complete quotes page UI (migrate to PostgreSQL similar to idioms)
 - [ ] Add structured logging (replace print statements)
 - [ ] Add health check for database connections
-- [ ] PostgreSQL support (code exists but untested)
+- [ ] Admin UI for managing idiom status (draft → active/deleted)
 - [ ] Request-level rate limiting (currently only energy-based)
 - [ ] Admin user management UI
 - [ ] Batch operations for better performance
 - [ ] Search query suggestions/autocomplete
+- [ ] Idiom editing capabilities (title, explanation fields)
 
 ---
 

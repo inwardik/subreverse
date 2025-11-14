@@ -1,14 +1,14 @@
 """PostgreSQL database connection and User repository implementation."""
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select, update
+from sqlalchemy import select, update, delete
 
-from src.domain.entities import User
-from src.domain.interfaces import IUserRepository
-from src.infrastructure.database.postgres_models import Base, UserModel
+from src.domain.entities import User, Idiom
+from src.domain.interfaces import IUserRepository, IIdiomRepository
+from src.infrastructure.database.postgres_models import Base, UserModel, IdiomModel
 
 
 class PostgreSQLConnection:
@@ -199,4 +199,111 @@ class PostgreSQLUserRepository(IUserRepository):
             xp=model.xp,
             role=model.role,
             last_recharge=model.last_recharge
+        )
+
+
+class PostgreSQLIdiomRepository(IIdiomRepository):
+    """PostgreSQL implementation of Idiom repository."""
+
+    def __init__(self, session: AsyncSession):
+        """Initialize repository with database session.
+
+        Args:
+            session: SQLAlchemy async session
+        """
+        self.session = session
+
+    async def get_all(self, limit: int = 100, status: Optional[str] = None) -> List[Idiom]:
+        """Get idioms with optional status filter."""
+        query = select(IdiomModel)
+
+        if status:
+            query = query.where(IdiomModel.status == status)
+
+        query = query.order_by(IdiomModel.created_at.desc()).limit(limit)
+
+        result = await self.session.execute(query)
+        idiom_models = result.scalars().all()
+
+        return [self._model_to_entity(model) for model in idiom_models]
+
+    async def get_by_id(self, idiom_id: str) -> Optional[Idiom]:
+        """Get idiom by ID."""
+        result = await self.session.execute(
+            select(IdiomModel).where(IdiomModel.id == idiom_id)
+        )
+        idiom_model = result.scalar_one_or_none()
+        return self._model_to_entity(idiom_model) if idiom_model else None
+
+    async def create(self, idiom: Idiom) -> Idiom:
+        """Create a new idiom."""
+        idiom_model = IdiomModel(
+            id=idiom.id or str(uuid4()),
+            title=idiom.title,
+            en=idiom.en,
+            ru=idiom.ru,
+            explanation=idiom.explanation,
+            source=idiom.source,
+            status=idiom.status,
+            created_at=idiom.created_at or datetime.utcnow(),
+            updated_at=idiom.updated_at or datetime.utcnow()
+        )
+        self.session.add(idiom_model)
+        await self.session.commit()
+        await self.session.refresh(idiom_model)
+
+        # Update idiom entity with generated ID if it was None
+        idiom.id = idiom_model.id
+        return idiom
+
+    async def update(self, idiom_id: str, idiom: Idiom) -> Optional[Idiom]:
+        """Update an existing idiom."""
+        result = await self.session.execute(
+            select(IdiomModel).where(IdiomModel.id == idiom_id)
+        )
+        idiom_model = result.scalar_one_or_none()
+
+        if not idiom_model:
+            return None
+
+        # Update fields
+        if idiom.title is not None:
+            idiom_model.title = idiom.title
+        if idiom.en:
+            idiom_model.en = idiom.en
+        if idiom.ru:
+            idiom_model.ru = idiom.ru
+        if idiom.explanation is not None:
+            idiom_model.explanation = idiom.explanation
+        if idiom.source is not None:
+            idiom_model.source = idiom.source
+        if idiom.status:
+            idiom_model.status = idiom.status
+
+        idiom_model.updated_at = datetime.utcnow()
+
+        await self.session.commit()
+        await self.session.refresh(idiom_model)
+        return self._model_to_entity(idiom_model)
+
+    async def delete(self, idiom_id: str) -> bool:
+        """Delete an idiom by ID."""
+        stmt = delete(IdiomModel).where(IdiomModel.id == idiom_id)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
+    @staticmethod
+    def _model_to_entity(model: IdiomModel) -> Idiom:
+        """Convert SQLAlchemy model to domain entity."""
+        return Idiom(
+            id=model.id,
+            title=model.title,
+            en=model.en,
+            ru=model.ru,
+            explanation=model.explanation,
+            source=model.source,
+            status=model.status,
+            created_at=model.created_at,
+            updated_at=model.updated_at
         )
