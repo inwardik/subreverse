@@ -1,0 +1,13 @@
+# Testing framework
+pytest==8.0.0
+pytest-asyncio==0.23.3
+
+# HTTP testing client
+httpx==0.26.0
+
+# Coverage reporting
+pytest-cov==4.1.0
+
+# Test database helpers
+pytest-postgresql==5.0.0
+pytest-mongodb==3.1.0
