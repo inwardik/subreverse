@@ -451,12 +451,52 @@ function HomePage() {
     if (h.includes('leader')) return 'leaderboard'
     return 'search'
   }
+
+  // Extract query parameter from hash
+  const getQueryFromHash = () => {
+    const hash = window.location.hash
+    const match = hash.match(/[?&]q=([^&]+)/)
+    if (match) {
+      try {
+        // Remove quotes if present and decode
+        let query = decodeURIComponent(match[1])
+        query = query.replace(/^["']|["']$/g, '')
+        return query
+      } catch {
+        return ''
+      }
+    }
+    return ''
+  }
+
   const [tab, setTab] = useState(parseHash)
+
+  // Initialize query from hash on mount
   useEffect(() => {
-    function onHash() { setTab(parseHash()) }
+    const queryFromHash = getQueryFromHash()
+    if (queryFromHash) {
+      setQ(queryFromHash)
+      // Trigger search if there's a query in the hash
+      doSearch(queryFromHash)
+    }
+  }, [])
+
+  useEffect(() => {
+    function onHash() {
+      const newTab = parseHash()
+      setTab(newTab)
+      // If switched to search tab, check for query in hash
+      if (newTab === 'search') {
+        const queryFromHash = getQueryFromHash()
+        if (queryFromHash && queryFromHash !== q) {
+          setQ(queryFromHash)
+          doSearch(queryFromHash)
+        }
+      }
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  }, [q])
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
@@ -480,6 +520,15 @@ function HomePage() {
     const t = term.trim()
     try {
       setLoading(true); setError('')
+
+      // Update hash with query parameter if searching
+      if (t) {
+        const encodedQuery = encodeURIComponent(t)
+        window.location.hash = `#/search?q=${encodedQuery}`
+      } else {
+        window.location.hash = '#/search'
+      }
+
       if (!t) {
         // Fetch a random record when search line is empty
         const res = await fetch(`/api/get_random`)
@@ -639,8 +688,8 @@ function IdiomsView() {
   }
 
   const handleSearch = (title) => {
-    window.location.hash = `#/search?q="${encodeURIComponent(title)}"`
-    window.location.reload()
+    // Navigate to search tab with query in hash
+    window.location.hash = `#/search?q=${encodeURIComponent(title)}`
   }
 
   if (loading) return <div>Loading idioms...</div>
@@ -828,7 +877,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this draft?')) return
+    if (!confirm('Are you sure you want to delete this idiom? It will be moved to deleted status.')) return
 
     setSaving(true)
     setError('')
@@ -848,11 +897,14 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
         return
       }
 
+      // Update status to 'deleted' instead of calling DELETE endpoint
       const res = await fetch(`/api/idioms/${idiom._id}`, {
-        method: 'DELETE',
+        method: 'PATCH',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ status: 'deleted' })
       })
 
       if (!res.ok) {
@@ -1021,25 +1073,26 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {idiom.status === 'draft' && (
-            <button
-              onClick={handleDelete}
-              disabled={saving}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: 'rgba(229,9,20,0.8)',
-                border: 'none',
-                borderRadius: 6,
-                color: 'white',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: '500'
-              }}
-            >
-              {saving ? 'Deleting...' : 'Delete Draft'}
-            </button>
-          )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Delete icon (trash bin) */}
+          <button
+            onClick={handleDelete}
+            disabled={saving}
+            title="Delete idiom"
+            style={{
+              padding: '10px 12px',
+              backgroundColor: 'transparent',
+              border: '1px solid rgba(229,9,20,0.5)',
+              borderRadius: 6,
+              color: 'rgba(229,9,20,0.8)',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: '1.2rem',
+              fontWeight: '500',
+              lineHeight: 1
+            }}
+          >
+            🗑️
+          </button>
 
           <button
             onClick={() => handleSave()}
@@ -1058,22 +1111,42 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
             {saving ? 'Saving...' : 'Save'}
           </button>
 
-          <button
-            onClick={() => handleSave('published')}
-            disabled={saving}
-            style={{
-              padding: '10px 16px',
-              backgroundColor: 'rgba(34, 170, 85, 0.8)',
-              border: 'none',
-              borderRadius: 6,
-              color: 'white',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: '500'
-            }}
-          >
-            {saving ? 'Publishing...' : 'Publish'}
-          </button>
+          {/* Show Publish button for draft, To Draft button for published */}
+          {idiom.status === 'draft' ? (
+            <button
+              onClick={() => handleSave('published')}
+              disabled={saving}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: 'rgba(34, 170, 85, 0.8)',
+                border: 'none',
+                borderRadius: 6,
+                color: 'white',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500'
+              }}
+            >
+              {saving ? 'Publishing...' : 'Publish'}
+            </button>
+          ) : idiom.status === 'published' ? (
+            <button
+              onClick={() => handleSave('draft')}
+              disabled={saving}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: 'rgba(128, 128, 128, 0.6)',
+                border: 'none',
+                borderRadius: 6,
+                color: 'white',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500'
+              }}
+            >
+              {saving ? 'Saving...' : 'To Draft'}
+            </button>
+          ) : null}
 
           <button
             onClick={onClose}
