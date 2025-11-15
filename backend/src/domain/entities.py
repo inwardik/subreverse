@@ -35,7 +35,7 @@ class Idiom:
     explanation: Optional[str] = None
     source: Optional[str] = None
     status: str = "draft"  # draft, published, deleted
-    ai_mark: Optional[int] = None
+    ai_score: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

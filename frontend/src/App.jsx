@@ -844,7 +844,7 @@ function IdiomsView() {
                     <span>·</span>
                     <span>
                       {new Date(it.created_at).toLocaleDateString()}
-                      {it.ai_mark !== null && it.ai_mark !== undefined && ` AI Score: ${it.ai_mark}`}
+                      {it.ai_score !== null && it.ai_score !== undefined && ` AI Score: ${it.ai_score}`}
                     </span>
                   </>
                 )}
