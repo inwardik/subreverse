@@ -578,48 +578,472 @@ function IdiomsView() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editingIdiom, setEditingIdiom] = useState(null)
+  const currentUser = getUserData()
+
+  const loadIdioms = async () => {
+    try {
+      setLoading(true)
+      const headers = {}
+      const token = localStorage.getItem('authToken')
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const res = await fetch('/api/idioms', { headers })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json().catch(() => [])
+      setItems(Array.isArray(data) ? data : [])
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    let aborted = false
-    ;(async () => {
-      try {
-        setLoading(true)
-        const res = await fetch('/api/idioms')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json().catch(() => [])
-        if (!aborted) setItems(Array.isArray(data) ? data : [])
-      } catch (e) {
-        if (!aborted) setError(e.message || String(e))
-      } finally {
-        if (!aborted) setLoading(false)
-      }
-    })()
-    return () => { aborted = true }
+    loadIdioms()
   }, [])
+
+  const handleEdit = (idiom) => {
+    setEditingIdiom(idiom)
+  }
+
+  const handleSearch = (title) => {
+    window.location.hash = `#/search?q="${encodeURIComponent(title)}"`
+    window.location.reload()
+  }
 
   if (loading) return <div>Loading idioms...</div>
   if (error) return <div style={{ color: '#b00' }}>Error: {error}</div>
   if (!items.length) return <div>No idioms yet.</div>
 
   return (
-    <div className="idioms-list" style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-      {items.map((it, idx) => (
-        <div key={it._id || idx} className="idiom-item" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: 12 }}>
-          {it.title && <div className="title" style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: 6, color: '#4a9eff' }}>{it.title}</div>}
-          <div className="en" style={{ fontSize: '1.05rem', marginBottom: 4 }}>{it.en}</div>
-          <div className="ru" style={{ opacity: 0.9, marginBottom: 4 }}>{it.ru}</div>
-          {it.explanation && <div className="explanation" style={{ fontSize: '0.95rem', fontStyle: 'italic', opacity: 0.8, marginTop: 6, marginBottom: 4 }}>{it.explanation}</div>}
-          <div className="meta" style={{ marginTop: 4, fontSize: '0.9rem', opacity: 0.75 }}>
-            {it.source && <><span>{it.source}</span><span> · </span></>}
-            <span style={{
-              padding: '2px 6px',
-              borderRadius: 4,
-              backgroundColor: it.status === 'active' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
-              fontSize: '0.85rem'
-            }}>{it.status || 'draft'}</span>
-            {it.created_at && <><span> · </span><span>{new Date(it.created_at).toLocaleDateString()}</span></>}
+    <>
+      <div className="idioms-list" style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+        {items.map((it, idx) => {
+          const isOwner = currentUser && currentUser.id === it.user_id
+          const canEdit = isOwner && (it.status === 'draft' || it.status === 'published')
+
+          return (
+            <div
+              key={it._id || idx}
+              className="idiom-item"
+              style={{
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 8,
+                padding: 16,
+                backgroundColor: 'rgba(255,255,255,0.02)',
+                position: 'relative'
+              }}
+            >
+              {/* Status badge in top right */}
+              <div style={{ position: 'absolute', top: 12, right: 12 }}>
+                <span style={{
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  backgroundColor: it.status === 'published' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
+                  fontSize: '0.8rem',
+                  fontWeight: '500'
+                }}>{it.status || 'draft'}</span>
+              </div>
+
+              {/* Title (clickable if exists) */}
+              {it.title ? (
+                <h3
+                  style={{
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
+                    marginBottom: 8,
+                    color: '#4a9eff',
+                    cursor: 'pointer',
+                    marginRight: 80
+                  }}
+                  onClick={() => handleSearch(it.title)}
+                >
+                  {it.title}
+                </h3>
+              ) : (
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: 8, color: '#888', marginRight: 80 }}>
+                  (Untitled)
+                </h3>
+              )}
+
+              {/* Author */}
+              <div style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 12 }}>
+                by <strong>{it.username || 'Unknown'}</strong>
+                {canEdit && (
+                  <button
+                    onClick={() => handleEdit(it)}
+                    style={{
+                      marginLeft: 12,
+                      background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: 4,
+                      padding: '4px 8px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      color: '#4a9eff'
+                    }}
+                  >
+                    ✏️ Edit
+                  </button>
+                )}
+              </div>
+
+              {/* English & Russian */}
+              <div className="en" style={{ fontSize: '1.05rem', marginBottom: 6, fontWeight: '500' }}>{it.en}</div>
+              <div className="ru" style={{ opacity: 0.85, marginBottom: 8 }}>{it.ru}</div>
+
+              {/* Explanation */}
+              {it.explanation && (
+                <div className="explanation" style={{
+                  fontSize: '0.95rem',
+                  fontStyle: 'italic',
+                  opacity: 0.75,
+                  marginTop: 10,
+                  marginBottom: 8,
+                  paddingLeft: 12,
+                  borderLeft: '3px solid rgba(74, 158, 255, 0.3)'
+                }}>
+                  {it.explanation}
+                </div>
+              )}
+
+              {/* Footer meta */}
+              <div className="meta" style={{ marginTop: 8, fontSize: '0.85rem', opacity: 0.6 }}>
+                {it.source && <><span>Source: {it.source}</span><span> · </span></>}
+                {it.created_at && <span>{new Date(it.created_at).toLocaleDateString()}</span>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Edit Modal */}
+      {editingIdiom && (
+        <IdiomEditModal
+          idiom={editingIdiom}
+          onClose={() => setEditingIdiom(null)}
+          onSaved={() => {
+            setEditingIdiom(null)
+            loadIdioms()
+          }}
+        />
+      )}
+    </>
+  )
+}
+
+function IdiomEditModal({ idiom, onClose, onSaved }) {
+  const [formData, setFormData] = useState({
+    title: idiom.title || '',
+    en: idiom.en || '',
+    ru: idiom.ru || '',
+    explanation: idiom.explanation || '',
+    source: idiom.source || ''
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSave = async (newStatus = null) => {
+    setSaving(true)
+    setError('')
+
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        setError('You must be logged in')
+        return
+      }
+
+      const updateData = { ...formData }
+      if (newStatus) {
+        updateData.status = newStatus
+      }
+
+      const res = await fetch(`/api/idioms/${idiom._id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      })
+
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(err || `HTTP ${res.status}`)
+      }
+
+      onSaved()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this draft?')) return
+
+    setSaving(true)
+    setError('')
+
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        setError('You must be logged in')
+        return
+      }
+
+      const res = await fetch(`/api/idioms/${idiom._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(err || `HTTP ${res.status}`)
+      }
+
+      onSaved()
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 20
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 600,
+          width: '100%',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: 20, color: '#4a9eff' }}>Edit Idiom</h2>
+
+        {error && (
+          <div style={{
+            padding: 12,
+            marginBottom: 16,
+            backgroundColor: 'rgba(229,9,20,0.2)',
+            border: '1px solid rgba(229,9,20,0.5)',
+            borderRadius: 6,
+            color: '#ff6b6b'
+          }}>
+            {error}
           </div>
+        )}
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: '0.9rem', opacity: 0.8 }}>
+            Title
+          </label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => handleChange('title', e.target.value)}
+            style={{
+              width: '100%',
+              padding: 10,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'white',
+              fontSize: '1rem'
+            }}
+            placeholder="Enter a catchy title..."
+          />
         </div>
-      ))}
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: '0.9rem', opacity: 0.8 }}>
+            English
+          </label>
+          <textarea
+            value={formData.en}
+            onChange={(e) => handleChange('en', e.target.value)}
+            rows={3}
+            style={{
+              width: '100%',
+              padding: 10,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'white',
+              fontSize: '1rem',
+              resize: 'vertical'
+            }}
+            placeholder="English text..."
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: '0.9rem', opacity: 0.8 }}>
+            Russian
+          </label>
+          <textarea
+            value={formData.ru}
+            onChange={(e) => handleChange('ru', e.target.value)}
+            rows={3}
+            style={{
+              width: '100%',
+              padding: 10,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'white',
+              fontSize: '1rem',
+              resize: 'vertical'
+            }}
+            placeholder="Russian text..."
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: '0.9rem', opacity: 0.8 }}>
+            Explanation
+          </label>
+          <textarea
+            value={formData.explanation}
+            onChange={(e) => handleChange('explanation', e.target.value)}
+            rows={4}
+            style={{
+              width: '100%',
+              padding: 10,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'white',
+              fontSize: '1rem',
+              resize: 'vertical'
+            }}
+            placeholder="Detailed explanation..."
+          />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontSize: '0.9rem', opacity: 0.8 }}>
+            Source
+          </label>
+          <input
+            type="text"
+            value={formData.source}
+            onChange={(e) => handleChange('source', e.target.value)}
+            style={{
+              width: '100%',
+              padding: 10,
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 6,
+              color: 'white',
+              fontSize: '1rem'
+            }}
+            placeholder="Source (e.g., movie name)..."
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {idiom.status === 'draft' && (
+            <button
+              onClick={handleDelete}
+              disabled={saving}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: 'rgba(229,9,20,0.8)',
+                border: 'none',
+                borderRadius: 6,
+                color: 'white',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500'
+              }}
+            >
+              {saving ? 'Deleting...' : 'Delete Draft'}
+            </button>
+          )}
+
+          <button
+            onClick={() => handleSave()}
+            disabled={saving}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: 'rgba(74, 158, 255, 0.8)',
+              border: 'none',
+              borderRadius: 6,
+              color: 'white',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '500'
+            }}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+
+          <button
+            onClick={() => handleSave('published')}
+            disabled={saving}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: 'rgba(34, 170, 85, 0.8)',
+              border: 'none',
+              borderRadius: 6,
+              color: 'white',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              fontWeight: '500'
+            }}
+          >
+            {saving ? 'Publishing...' : 'Publish'}
+          </button>
+
+          <button
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: 'transparent',
+              border: '1px solid rgba(255,255,255,0.3)',
+              borderRadius: 6,
+              color: 'white',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize: '0.95rem',
+              marginLeft: 'auto'
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

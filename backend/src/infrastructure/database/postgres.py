@@ -239,6 +239,7 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
         """Create a new idiom."""
         idiom_model = IdiomModel(
             id=idiom.id or str(uuid4()),
+            user_id=idiom.user_id,
             title=idiom.title,
             en=idiom.en,
             ru=idiom.ru,
@@ -293,11 +294,52 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
         await self.session.commit()
         return result.rowcount > 0
 
+    async def get_for_user(self, user_id: Optional[str], limit: int = 100) -> List[Idiom]:
+        """Get published idioms + user's draft idioms (user's drafts first)."""
+        if user_id:
+            # Get user's drafts first
+            user_drafts_query = (
+                select(IdiomModel)
+                .where(IdiomModel.user_id == user_id)
+                .where(IdiomModel.status == "draft")
+                .order_by(IdiomModel.created_at.desc())
+            )
+
+            # Get published idioms (excluding deleted)
+            published_query = (
+                select(IdiomModel)
+                .where(IdiomModel.status == "published")
+                .order_by(IdiomModel.created_at.desc())
+            )
+
+            # Execute both queries
+            user_drafts_result = await self.session.execute(user_drafts_query)
+            user_drafts = user_drafts_result.scalars().all()
+
+            published_result = await self.session.execute(published_query)
+            published = published_result.scalars().all()
+
+            # Combine: user's drafts first, then published
+            all_idioms = list(user_drafts) + list(published)
+            return [self._model_to_entity(model) for model in all_idioms[:limit]]
+        else:
+            # No user - only show published idioms
+            query = (
+                select(IdiomModel)
+                .where(IdiomModel.status == "published")
+                .order_by(IdiomModel.created_at.desc())
+                .limit(limit)
+            )
+            result = await self.session.execute(query)
+            idiom_models = result.scalars().all()
+            return [self._model_to_entity(model) for model in idiom_models]
+
     @staticmethod
     def _model_to_entity(model: IdiomModel) -> Idiom:
         """Convert SQLAlchemy model to domain entity."""
         return Idiom(
             id=model.id,
+            user_id=model.user_id,
             title=model.title,
             en=model.en,
             ru=model.ru,

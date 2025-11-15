@@ -31,6 +31,8 @@ class SubtitlePairUpdateDTO(BaseModel):
 class IdiomResponseDTO(BaseModel):
     """DTO for idiom response."""
     id: str = Field(alias="_id")
+    user_id: str
+    username: Optional[str] = None  # Author's username, populated separately
     en: str
     ru: str
     title: Optional[str] = None
@@ -43,6 +45,16 @@ class IdiomResponseDTO(BaseModel):
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class IdiomUpdateDTO(BaseModel):
+    """DTO for updating an idiom."""
+    title: Optional[str] = None
+    en: Optional[str] = None
+    ru: Optional[str] = None
+    explanation: Optional[str] = None
+    source: Optional[str] = None
+    status: Optional[str] = None  # draft, published, deleted
 
 
 class QuoteResponseDTO(BaseModel):

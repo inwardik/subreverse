@@ -41,12 +41,13 @@ class UserSchema(BaseModel):
 
 class IdiomCreateSchema(BaseModel):
     """Schema for creating a new idiom."""
+    user_id: str = Field(..., min_length=1)
     en: str = Field(..., min_length=1)
     ru: str = Field(..., min_length=1)
     title: Optional[str] = None
     explanation: Optional[str] = None
     source: Optional[str] = None
-    status: Literal["draft", "active", "deleted"] = "draft"
+    status: Literal["draft", "published", "deleted"] = "draft"
 
 
 class IdiomUpdateSchema(BaseModel):
@@ -56,7 +57,7 @@ class IdiomUpdateSchema(BaseModel):
     ru: Optional[str] = None
     explanation: Optional[str] = None
     source: Optional[str] = None
-    status: Optional[Literal["draft", "active", "deleted"]] = None
+    status: Optional[Literal["draft", "published", "deleted"]] = None
 
 
 class IdiomSchema(BaseModel):
@@ -64,6 +65,7 @@ class IdiomSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
+    user_id: str
     title: Optional[str]
     en: str
     ru: str

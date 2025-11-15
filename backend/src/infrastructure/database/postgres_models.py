@@ -36,6 +36,7 @@ class IdiomModel(Base):
     __tablename__ = "idioms"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=True)
     en: Mapped[str] = mapped_column(Text, nullable=False)
     ru: Mapped[str] = mapped_column(Text, nullable=False)
@@ -46,4 +47,4 @@ class IdiomModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self) -> str:
-        return f"<IdiomModel(id={self.id}, en={self.en[:30]}..., status={self.status})>"
+        return f"<IdiomModel(id={self.id}, user_id={self.user_id}, en={self.en[:30]}..., status={self.status})>"
