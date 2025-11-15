@@ -576,7 +576,7 @@ function HomePage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">SubReverse</div>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
         <div className="tagline">Hunt your idiom among <a href="/content">{totalPhrases.toLocaleString()}</a> phrases</div>
         <div className="navbar">
           <button className={`nav-btn${tab==='search' ? ' active' : ''}`} onClick={() => { setTab('search'); try { window.location.hash = '#/search' } catch {} }}>Search</button>
@@ -732,18 +732,17 @@ function IdiomsView() {
               {/* Title with edit button */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 {it.title ? (
-                  <h3
-                    style={{
-                      fontSize: '1.2rem',
-                      fontWeight: 'bold',
-                      margin: 0,
-                      color: '#4a9eff',
-                      cursor: 'pointer',
-                      flex: 1
-                    }}
-                    onClick={() => handleSearch(it.title)}
-                  >
-                    {it.title}
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, flex: 1 }}>
+                    <span
+                      style={{
+                        color: '#4a9eff',
+                        cursor: 'pointer',
+                        textDecoration: 'none'
+                      }}
+                      onClick={() => handleSearch(it.title)}
+                    >
+                      {it.title}
+                    </span>
                   </h3>
                 ) : (
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#888', flex: 1 }}>
@@ -804,14 +803,14 @@ function IdiomsView() {
                   style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
                   title="Like"
                 >
-                  🖒 {currentReactions.likes}
+                  👍 {currentReactions.likes}
                 </span>
                 <span
                   onClick={() => handleReaction(it._id, 'dislike')}
                   style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
                   title="Dislike"
                 >
-                  🖓 {currentReactions.dislikes}
+                  👎 {currentReactions.dislikes}
                 </span>
 
                 <span>·</span>
@@ -888,6 +887,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -1009,11 +1009,33 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
           width: '100%',
           maxHeight: '90vh',
           overflow: 'auto',
-          border: '1px solid rgba(255,255,255,0.2)'
+          border: '1px solid rgba(255,255,255,0.2)',
+          position: 'relative'
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ marginTop: 0, marginBottom: 20, color: '#4a9eff' }}>Edit Idiom</h2>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            background: 'none',
+            border: 'none',
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+            padding: 4,
+            lineHeight: 1,
+            transition: 'color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(255,255,255,1)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.6)'}
+          title="Close"
+        >
+          ×
+        </button>
+        <h2 style={{ marginTop: 0, marginBottom: 20, color: '#4a9eff', paddingRight: 30 }}>Edit Idiom</h2>
 
         {error && (
           <div style={{
@@ -1136,97 +1158,204 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Delete icon (trash bin) */}
-          <button
-            onClick={handleDelete}
-            disabled={saving}
-            title="Delete idiom"
-            style={{
-              padding: '10px 12px',
-              backgroundColor: 'transparent',
-              border: '1px solid rgba(229,9,20,0.5)',
-              borderRadius: 6,
-              color: 'rgba(229,9,20,0.8)',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '1.2rem',
-              fontWeight: '500',
-              lineHeight: 1
-            }}
-          >
-            🗑️
-          </button>
-
-          <button
-            onClick={() => handleSave()}
-            disabled={saving}
-            style={{
-              padding: '10px 16px',
-              backgroundColor: 'rgba(74, 158, 255, 0.8)',
-              border: 'none',
-              borderRadius: 6,
-              color: 'white',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
-              fontWeight: '500'
-            }}
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-
-          {/* Show Publish button for draft, To Draft button for published */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
           {idiom.status === 'draft' ? (
-            <button
-              onClick={() => handleSave('published')}
-              disabled={saving}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: 'rgba(34, 170, 85, 0.8)',
-                border: 'none',
-                borderRadius: 6,
-                color: 'white',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: '500'
-              }}
-            >
-              {saving ? 'Publishing...' : 'Publish'}
-            </button>
-          ) : idiom.status === 'published' ? (
-            <button
-              onClick={() => handleSave('draft')}
-              disabled={saving}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: 'rgba(128, 128, 128, 0.6)',
-                border: 'none',
-                borderRadius: 6,
-                color: 'white',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: '500'
-              }}
-            >
-              {saving ? 'Saving...' : 'To Draft'}
-            </button>
-          ) : null}
+            <>
+              {/* Draft status: Publish button with dropdown */}
+              <button
+                onClick={() => handleSave('published')}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: 'rgba(34, 170, 85, 0.8)',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: 'white',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '500'
+                }}
+              >
+                {saving ? 'Publishing...' : 'Publish'}
+              </button>
 
-          <button
-            onClick={onClose}
-            disabled={saving}
-            style={{
-              padding: '10px 16px',
-              backgroundColor: 'transparent',
-              border: '1px solid rgba(255,255,255,0.3)',
-              borderRadius: 6,
-              color: 'white',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '0.95rem',
-              marginLeft: 'auto'
-            }}
-          >
-            Close
-          </button>
+              {/* Dropdown menu button */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  disabled={saving}
+                  style={{
+                    padding: '10px 12px',
+                    backgroundColor: 'rgba(34, 170, 85, 0.8)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'white',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    lineHeight: 1
+                  }}
+                  title="More actions"
+                >
+                  ▼
+                </button>
+
+                {dropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: 4,
+                      backgroundColor: '#2a2a2a',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      zIndex: 1000,
+                      minWidth: 120
+                    }}
+                  >
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleSave() }}
+                      disabled={saving}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'white',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        textAlign: 'left',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleDelete() }}
+                      disabled={saving}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'rgba(229,9,20,0.9)',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        textAlign: 'left',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : idiom.status === 'published' ? (
+            <>
+              {/* Published status: Save button with dropdown */}
+              <button
+                onClick={() => handleSave()}
+                disabled={saving}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: 'rgba(74, 158, 255, 0.8)',
+                  border: 'none',
+                  borderRadius: 6,
+                  color: 'white',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '500'
+                }}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+
+              {/* Dropdown menu button */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  disabled={saving}
+                  style={{
+                    padding: '10px 12px',
+                    backgroundColor: 'rgba(74, 158, 255, 0.8)',
+                    border: 'none',
+                    borderRadius: 6,
+                    color: 'white',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    lineHeight: 1
+                  }}
+                  title="More actions"
+                >
+                  ▼
+                </button>
+
+                {dropdownOpen && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: 4,
+                      backgroundColor: '#2a2a2a',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: 6,
+                      overflow: 'hidden',
+                      zIndex: 1000,
+                      minWidth: 120
+                    }}
+                  >
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleSave('draft') }}
+                      disabled={saving}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'white',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        textAlign: 'left',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      To Draft
+                    </button>
+                    <button
+                      onClick={() => { setDropdownOpen(false); handleDelete() }}
+                      disabled={saving}
+                      style={{
+                        width: '100%',
+                        padding: '10px 16px',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: 'rgba(229,9,20,0.9)',
+                        cursor: saving ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        textAlign: 'left',
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1270,7 +1399,7 @@ function IdiomsPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">SubReverse</div>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
         <div className="tagline">Idioms</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1490,7 +1619,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand">SubReverse</div>
+          <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1511,7 +1640,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand">SubReverse</div>
+          <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1532,7 +1661,7 @@ function AdminPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">SubReverse</div>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
         <div className="tagline">Search bilingual subtitles like a pro</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1640,7 +1769,7 @@ function ContentPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">SubReverse</div>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
         <div className="tagline">Content: English subtitle files</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
