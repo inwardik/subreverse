@@ -13,7 +13,7 @@ from application.dto import (
     DeleteResponseDTO,
     ClearDuplicatesResponseDTO
 )
-from api.dependencies import get_subtitle_service, get_current_user, get_admin_user
+from api.dependencies import get_subtitle_service, get_current_user, get_current_user_optional, get_admin_user
 from domain.entities import User
 
 
@@ -147,24 +147,11 @@ async def compute_stats(
 @router.get("/idioms", response_model=List[IdiomResponseDTO])
 async def list_idioms(
     limit: int = Query(100, description="Maximum number of idioms to return"),
-    authorization: Optional[str] = Header(default=None),
-    service: SubtitlePairService = Depends(get_subtitle_service)
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    user: Optional[User] = Depends(get_current_user_optional)
 ):
     """Return published idioms + user's draft idioms (user's drafts first) if authenticated."""
-    # Try to get current user from token (optional)
-    user_id = None
-    try:
-        if authorization and authorization.startswith("Bearer "):
-            from .dependencies import get_auth_service
-            auth_service = await get_auth_service()
-            token = authorization.split(" ", 1)[1]
-            user = await auth_service.verify_token(token)
-            if user:
-                user_id = user.id
-    except:
-        # If authentication fails, just show published idioms
-        pass
-
+    user_id = user.id if user else None
     return await service.get_idioms_for_user(user_id, limit)
 
 
