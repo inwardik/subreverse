@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_SECONDS: int = 604800  # 7 days
 
+    # Admin settings
+    ADMIN_PASS: str = "change_me"
+
     class Config:
         env_file = ".env"
         case_sensitive = True
