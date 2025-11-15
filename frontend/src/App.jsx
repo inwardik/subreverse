@@ -138,7 +138,7 @@ function AuthWidget() {
             <div className="user-avatar">👤</div>
             <div className="user-name">{user.username}</div>
             <div className="level-badge">Lv {level}</div>
-            <button className="username-btn" onClick={() => setMenuOpen(v => !v)} title="Account">⋮</button>
+            <button className="username-btn" onClick={() => setMenuOpen(v => !v)} title="Account">☰</button>
             {menuOpen && (
               <div className="dropdown" onMouseLeave={() => setMenuOpen(false)}>
                 <button className="menu-item" onClick={logout}>Logout</button>
@@ -576,7 +576,7 @@ function HomePage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">MovieScope</div>
+        <div className="brand">SubReverse</div>
         <div className="tagline">Hunt your idiom among <a href="/content">{totalPhrases.toLocaleString()}</a> phrases</div>
         <div className="navbar">
           <button className={`nav-btn${tab==='search' ? ' active' : ''}`} onClick={() => { setTab('search'); try { window.location.hash = '#/search' } catch {} }}>Search</button>
@@ -629,6 +629,7 @@ function IdiomsView() {
   const [error, setError] = useState('')
   const [editingIdiom, setEditingIdiom] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
+  const [reactions, setReactions] = useState({})
 
   useEffect(() => {
     try {
@@ -692,6 +693,19 @@ function IdiomsView() {
     window.location.hash = `#/search?q=${encodeURIComponent(title)}`
   }
 
+  const handleReaction = (idiomId, type) => {
+    setReactions(prev => {
+      const current = prev[idiomId] || { likes: 0, dislikes: 0 }
+      return {
+        ...prev,
+        [idiomId]: {
+          likes: type === 'like' ? current.likes + 1 : current.likes,
+          dislikes: type === 'dislike' ? current.dislikes + 1 : current.dislikes
+        }
+      }
+    })
+  }
+
   if (loading) return <div>Loading idioms...</div>
   if (error) return <div style={{ color: '#b00' }}>Error: {error}</div>
   if (!items.length) return <div>No idioms yet.</div>
@@ -702,6 +716,7 @@ function IdiomsView() {
         {items.map((it, idx) => {
           const isOwner = currentUser && currentUser.id === it.user_id
           const canEdit = isOwner && (it.status === 'draft' || it.status === 'published')
+          const currentReactions = reactions[it._id] || { likes: 0, dislikes: 0 }
 
           return (
             <div
@@ -714,8 +729,8 @@ function IdiomsView() {
                 backgroundColor: 'rgba(255,255,255,0.02)'
               }}
             >
-              {/* Title at the top (clickable if exists) */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              {/* Title with edit button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 {it.title ? (
                   <h3
                     style={{
@@ -736,34 +751,17 @@ function IdiomsView() {
                   </h3>
                 )}
 
-                {/* Status badge - only show for owner */}
-                {isOwner && (
-                  <span style={{
-                    padding: '4px 10px',
-                    borderRadius: 4,
-                    backgroundColor: it.status === 'published' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
-                    fontSize: '0.8rem',
-                    fontWeight: '500',
-                    marginLeft: 12
-                  }}>{it.status || 'draft'}</span>
-                )}
-              </div>
-
-              {/* Author */}
-              <div style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 12 }}>
-                by <strong>{it.username || 'Unknown'}</strong>
+                {/* Edit button next to title */}
                 {canEdit && (
                   <button
                     onClick={() => handleEdit(it)}
                     style={{
-                      marginLeft: 12,
-                      background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: 4,
-                      padding: '4px 8px',
+                      background: 'none',
+                      border: 'none',
                       cursor: 'pointer',
-                      fontSize: '0.85rem',
-                      color: '#4a9eff'
+                      fontSize: '0.95rem',
+                      color: '#4a9eff',
+                      padding: '4px 8px'
                     }}
                   >
                     ✏️ Edit
@@ -790,10 +788,75 @@ function IdiomsView() {
                 </div>
               )}
 
-              {/* Footer meta */}
-              <div className="meta" style={{ marginTop: 8, fontSize: '0.85rem', opacity: 0.6 }}>
-                {it.source && <><span>Source: {it.source}</span><span> · </span></>}
-                {it.created_at && <span>{new Date(it.created_at).toLocaleDateString()}</span>}
+              {/* Footer meta with reactions, author, status, source, date, and comments */}
+              <div className="meta" style={{
+                marginTop: 12,
+                fontSize: '0.85rem',
+                opacity: 0.75,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap'
+              }}>
+                {/* Like/Dislike buttons */}
+                <span
+                  onClick={() => handleReaction(it._id, 'like')}
+                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                  title="Like"
+                >
+                  🖒 {currentReactions.likes}
+                </span>
+                <span
+                  onClick={() => handleReaction(it._id, 'dislike')}
+                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
+                  title="Dislike"
+                >
+                  🖓 {currentReactions.dislikes}
+                </span>
+
+                <span>·</span>
+
+                {/* Author */}
+                <span>by <strong>{it.username || 'Unknown'}</strong></span>
+
+                {/* Status badge - only show for owner */}
+                {isOwner && (
+                  <>
+                    <span>·</span>
+                    <span style={{
+                      color: it.status === 'published' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#888',
+                      fontSize: '0.8rem',
+                      fontWeight: '500'
+                    }}>{it.status || 'draft'}</span>
+                  </>
+                )}
+
+                {/* Source */}
+                {it.source && (
+                  <>
+                    <span>·</span>
+                    <span>Source: {it.source}</span>
+                  </>
+                )}
+
+                {/* Date */}
+                {it.created_at && (
+                  <>
+                    <span>·</span>
+                    <span>{new Date(it.created_at).toLocaleDateString()}</span>
+                  </>
+                )}
+
+                {/* Comments link */}
+                <span style={{ marginLeft: 'auto' }}>
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); /* TODO: implement comments */ }}
+                    style={{ color: '#4a9eff', textDecoration: 'none' }}
+                  >
+                    comments
+                  </a>
+                </span>
               </div>
             </div>
           )
@@ -1207,7 +1270,7 @@ function IdiomsPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">MovieScope</div>
+        <div className="brand">SubReverse</div>
         <div className="tagline">Idioms</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1427,7 +1490,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand">MovieScope</div>
+          <div className="brand">SubReverse</div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1448,7 +1511,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand">MovieScope</div>
+          <div className="brand">SubReverse</div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1469,7 +1532,7 @@ function AdminPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">MovieScope</div>
+        <div className="brand">SubReverse</div>
         <div className="tagline">Search bilingual subtitles like a pro</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1577,7 +1640,7 @@ function ContentPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand">MovieScope</div>
+        <div className="brand">SubReverse</div>
         <div className="tagline">Content: English subtitle files</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1620,7 +1683,27 @@ export default function App() {
       </main>
 
       <footer>
-        Powered by FastAPI + MongoDB • React (Vite)
+        <a
+          href="https://github.com/inwardik/subreverse"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            color: 'inherit',
+            textDecoration: 'none',
+            opacity: 0.7,
+            transition: 'opacity 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+        >
+          <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          GitHub
+        </a>
       </footer>
     </div>
   )
