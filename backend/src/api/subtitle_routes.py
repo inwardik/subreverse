@@ -1,5 +1,5 @@
 """API routes for subtitle pairs, idioms, quotes, and stats."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Header
 from typing import List, Optional
 
 from application.subtitle_service import SubtitlePairService
@@ -147,18 +147,20 @@ async def compute_stats(
 @router.get("/idioms", response_model=List[IdiomResponseDTO])
 async def list_idioms(
     limit: int = Query(100, description="Maximum number of idioms to return"),
-    request: Request,
+    authorization: Optional[str] = Header(default=None),
     service: SubtitlePairService = Depends(get_subtitle_service)
 ):
     """Return published idioms + user's draft idioms (user's drafts first) if authenticated."""
     # Try to get current user from token (optional)
     user_id = None
     try:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            from .dependencies import get_current_user
-            user = await get_current_user(request)
-            user_id = user.id
+        if authorization and authorization.startswith("Bearer "):
+            from .dependencies import get_auth_service
+            auth_service = await get_auth_service()
+            token = authorization.split(" ", 1)[1]
+            user = await auth_service.verify_token(token)
+            if user:
+                user_id = user.id
     except:
         # If authentication fails, just show published idioms
         pass
