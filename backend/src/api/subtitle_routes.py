@@ -12,7 +12,7 @@ from application.dto import (
     DeleteResponseDTO,
     ClearDuplicatesResponseDTO
 )
-from api.dependencies import get_subtitle_service, get_current_user
+from api.dependencies import get_subtitle_service, get_current_user, get_admin_user
 from domain.entities import User
 
 
@@ -97,19 +97,25 @@ async def update_pair(
 
 @router.post("/delete_all", response_model=DeleteResponseDTO)
 async def delete_all_pairs(
-    service: SubtitlePairService = Depends(get_subtitle_service)
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    admin_user: User = Depends(get_admin_user)
 ):
-    """Delete all subtitle pairs from the system."""
+    """
+    Delete all subtitle pairs from the system.
+    Requires admin role.
+    """
     return await service.delete_all_pairs()
 
 
 @router.post("/clear", response_model=ClearDuplicatesResponseDTO)
 async def clear_duplicates(
-    service: SubtitlePairService = Depends(get_subtitle_service)
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    admin_user: User = Depends(get_admin_user)
 ):
     """
     Find and delete duplicate documents having the same (en, ru) pair.
     Keeps exactly one document per distinct (en, ru) value combination.
+    Requires admin role.
     """
     return await service.clear_duplicates()
 
@@ -127,9 +133,13 @@ async def get_stats(
 
 @router.post("/stats", response_model=StatsResponseDTO)
 async def compute_stats(
-    service: SubtitlePairService = Depends(get_subtitle_service)
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    admin_user: User = Depends(get_admin_user)
 ):
-    """Compute statistics (total and files_en) and store them."""
+    """
+    Compute statistics (total and files_en) and store them.
+    Requires admin role.
+    """
     return await service.compute_stats()
 
 
@@ -167,12 +177,14 @@ async def search_pairs(
 
 @router.post("/index_elastic_search")
 async def reindex_elasticsearch(
-    service: SubtitlePairService = Depends(get_subtitle_service)
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    admin_user: User = Depends(get_admin_user)
 ):
     """
     Reindex all MongoDB documents into Elasticsearch.
     Strategy: delete existing index if present, recreate with mappings, then bulk index all docs in batches.
     Returns summary with total docs, indexed count, and elapsed time.
+    Requires admin role.
     """
     try:
         result = await service.reindex_elasticsearch()

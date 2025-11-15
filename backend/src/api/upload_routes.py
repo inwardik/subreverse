@@ -14,10 +14,10 @@ from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from application.dto import UploadSummaryDTO
-from api.dependencies import get_subtitle_service, get_subtitle_pair_repository
+from api.dependencies import get_subtitle_service, get_subtitle_pair_repository, get_admin_user
 from application.subtitle_service import SubtitlePairService
 from domain.interfaces import ISubtitlePairRepository
-from domain.entities import SubtitlePair
+from domain.entities import SubtitlePair, User
 from infrastructure.srt_parser import parse_srt, match_cues
 
 
@@ -25,10 +25,14 @@ router = APIRouter(prefix="/api", tags=["uploads"])
 
 
 @router.post("/upload_file")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(
+    file: UploadFile = File(...),
+    admin_user: User = Depends(get_admin_user)
+):
     """
     Simple file upload endpoint for testing.
     Accepts any file up to 1GB and returns its size.
+    Requires admin role.
     """
     try:
         size = 0
@@ -55,7 +59,8 @@ async def upload_file(file: UploadFile = File(...)):
 @router.post("/upload_zip", response_model=UploadSummaryDTO)
 async def upload_zip(
     file: UploadFile = File(...),
-    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository)
+    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
+    admin_user: User = Depends(get_admin_user)
 ):
     """
     Accept a zip with many .srt files, find valid _en/_ru pairs by basename, and load them into DB.
@@ -64,6 +69,7 @@ async def upload_zip(
     - Pair files that share the same basename before the _en/_ru suffix
     - Skip unmatched singles or other files
     Returns a summary JSON.
+    Requires admin role.
     """
     filename = file.filename or "upload.zip"
     if not filename.lower().endswith(".zip"):
@@ -183,13 +189,15 @@ async def upload_zip(
 @router.post("/import_ndjson", response_model=UploadSummaryDTO)
 async def import_ndjson(
     file: UploadFile = File(...),
-    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository)
+    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
+    admin_user: User = Depends(get_admin_user)
 ):
     """
     Import records from an NDJSON file into MongoDB. Each line must be a JSON object.
     - Sets rating to 0 when missing or invalid.
     - Only allows known fields: en, ru, file_en, file_ru, time_en, time_ru, rating, seq_id.
     Returns a summary.
+    Requires admin role.
     """
     filename = file.filename or "upload.ndjson"
     if not filename.lower().endswith(".ndjson"):
@@ -284,9 +292,13 @@ async def import_ndjson(
 
 @router.post("/export")
 async def export_all(
-    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository)
+    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
+    admin_user: User = Depends(get_admin_user)
 ):
-    """Export all documents from MongoDB collection to a temporary NDJSON file and return it."""
+    """
+    Export all documents from MongoDB collection to a temporary NDJSON file and return it.
+    Requires admin role.
+    """
     try:
         # Get all pairs
         pairs = await repo.get_all()
@@ -335,11 +347,13 @@ async def export_all(
 
 @router.post("/index_db")
 async def index_db(
-    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository)
+    repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
+    admin_user: User = Depends(get_admin_user)
 ):
     """
     Create indexes on MongoDB collections for optimal search performance.
     Creates indexes on 'en', 'ru', and 'seq_id' fields for the pairs collection.
+    Requires admin role.
     """
     try:
         # Access the collection directly from the repository

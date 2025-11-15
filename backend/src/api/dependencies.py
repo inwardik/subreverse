@@ -196,6 +196,29 @@ async def get_current_user_optional(
         return None
 
 
+async def get_admin_user(
+    user: User = Depends(get_current_user)
+) -> User:
+    """
+    Dependency to verify that current user has admin role.
+
+    Args:
+        user: Current authenticated user
+
+    Returns:
+        User entity if user is an admin
+
+    Raises:
+        HTTPException 403: If user does not have admin role
+    """
+    if user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return user
+
+
 # Subtitle service dependencies
 
 async def get_subtitle_pair_repository() -> ISubtitlePairRepository:
