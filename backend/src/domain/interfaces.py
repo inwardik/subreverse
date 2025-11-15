@@ -126,13 +126,28 @@ class IIdiomRepository(ABC):
     """Abstract repository interface for Idiom entities."""
 
     @abstractmethod
-    async def get_recent(self, limit: int = 10) -> List[Idiom]:
-        """Get most recent idioms."""
+    async def get_all(self, limit: int = 100, status: Optional[str] = None) -> List[Idiom]:
+        """Get idioms with optional status filter."""
         pass
 
     @abstractmethod
-    async def upsert(self, idiom: Idiom) -> Idiom:
-        """Insert or update idiom."""
+    async def get_by_id(self, idiom_id: str) -> Optional[Idiom]:
+        """Get idiom by ID."""
+        pass
+
+    @abstractmethod
+    async def create(self, idiom: Idiom) -> Idiom:
+        """Create a new idiom."""
+        pass
+
+    @abstractmethod
+    async def update(self, idiom_id: str, idiom: Idiom) -> Optional[Idiom]:
+        """Update an existing idiom."""
+        pass
+
+    @abstractmethod
+    async def delete(self, idiom_id: str) -> bool:
+        """Delete an idiom by ID."""
         pass
 
 

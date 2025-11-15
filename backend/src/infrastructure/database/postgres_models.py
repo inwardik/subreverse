@@ -1,6 +1,6 @@
 """SQLAlchemy models for PostgreSQL database."""
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime
+from sqlalchemy import String, Integer, DateTime, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from uuid import uuid4
 
@@ -29,3 +29,21 @@ class UserModel(Base):
 
     def __repr__(self) -> str:
         return f"<UserModel(id={self.id}, username={self.username}, email={self.email})>"
+
+
+class IdiomModel(Base):
+    """SQLAlchemy model for Idiom table."""
+    __tablename__ = "idioms"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    title: Mapped[str] = mapped_column(String(255), nullable=True)
+    en: Mapped[str] = mapped_column(Text, nullable=False)
+    ru: Mapped[str] = mapped_column(Text, nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<IdiomModel(id={self.id}, en={self.en[:30]}..., status={self.status})>"

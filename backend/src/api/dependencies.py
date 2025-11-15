@@ -9,6 +9,7 @@ from infrastructure.database.mongodb import (
 )
 from infrastructure.database.postgres import (
     PostgreSQLUserRepository,
+    PostgreSQLIdiomRepository,
     PostgreSQLConnection
 )
 from infrastructure.database.subtitle_mongo_repo import (
@@ -205,12 +206,13 @@ async def get_subtitle_pair_repository() -> ISubtitlePairRepository:
     return MongoDBSubtitlePairRepository(db)
 
 
-async def get_idiom_repository() -> IIdiomRepository:
+async def get_idiom_repository() -> AsyncGenerator[IIdiomRepository, None]:
     """Dependency injection for idiom repository."""
-    if not _mongodb_connection:
-        raise RuntimeError("MongoDB connection not initialized")
-    db = _mongodb_connection.get_database()
-    return MongoDBIdiomRepository(db)
+    if not _postgres_connection:
+        raise RuntimeError("PostgreSQL connection not initialized")
+
+    async for session in _postgres_connection.get_session():
+        yield PostgreSQLIdiomRepository(session)
 
 
 async def get_quote_repository() -> IQuoteRepository:
