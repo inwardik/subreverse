@@ -48,7 +48,7 @@ class IdiomCreateSchema(BaseModel):
     explanation: Optional[str] = None
     source: Optional[str] = None
     status: Literal["draft", "published", "deleted"] = "draft"
-    ai_mark: Optional[int] = None
+    ai_score: Optional[int] = None
 
 
 class IdiomUpdateSchema(BaseModel):
@@ -59,7 +59,7 @@ class IdiomUpdateSchema(BaseModel):
     explanation: Optional[str] = None
     source: Optional[str] = None
     status: Optional[Literal["draft", "published", "deleted"]] = None
-    ai_mark: Optional[int] = None
+    ai_score: Optional[int] = None
 
 
 class IdiomSchema(BaseModel):
@@ -74,6 +74,6 @@ class IdiomSchema(BaseModel):
     explanation: Optional[str]
     source: Optional[str]
     status: str
-    ai_mark: Optional[int]
+    ai_score: Optional[int]
     created_at: datetime
     updated_at: datetime

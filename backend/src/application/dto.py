@@ -39,6 +39,7 @@ class IdiomResponseDTO(BaseModel):
     explanation: Optional[str] = None
     source: Optional[str] = None
     status: str = "draft"
+    ai_score: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -55,6 +56,7 @@ class IdiomUpdateDTO(BaseModel):
     explanation: Optional[str] = None
     source: Optional[str] = None
     status: Optional[str] = None  # draft, published, deleted
+    ai_score: Optional[int] = None
 
 
 class QuoteResponseDTO(BaseModel):
