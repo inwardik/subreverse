@@ -625,6 +625,38 @@ function IdiomsView() {
 }
 
 function IdiomsPage() {
+  const [user, setUser] = useState(null)
+
+  // Load user from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('auth')
+      if (raw) {
+        const a = JSON.parse(raw)
+        if (a?.user) setUser(a.user)
+      }
+    } catch {}
+  }, [])
+
+  // Listen for auth changes
+  useEffect(() => {
+    function onAuthChanged() {
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const a = JSON.parse(raw)
+          if (a?.user) setUser(a.user)
+        } else {
+          setUser(null)
+        }
+      } catch {}
+    }
+    window.addEventListener('auth-changed', onAuthChanged)
+    return () => window.removeEventListener('auth-changed', onAuthChanged)
+  }, [])
+
+  const isAdmin = user?.role === 'admin'
+
   return (
     <>
       <header>
@@ -634,7 +666,7 @@ function IdiomsPage() {
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
           <a href="/idioms" style={{ marginRight: 12 }}>Idioms</a>
-          <a href="/admin" style={{ marginRight: 12 }}>Admin</a>
+          {isAdmin && <a href="/admin" style={{ marginRight: 12 }}>Admin</a>}
           <a href="/content">Content</a>
         </nav>
       </header>
@@ -652,6 +684,41 @@ function AdminPage() {
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const [summary, setSummary] = useState(null)
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState('')
+
+  // Load user and token from localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('auth')
+      if (raw) {
+        const a = JSON.parse(raw)
+        if (a?.token && a?.user) {
+          setToken(a.token)
+          setUser(a.user)
+        }
+      }
+    } catch {}
+  }, [])
+
+  // Listen for auth changes
+  useEffect(() => {
+    function onAuthChanged() {
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const a = JSON.parse(raw)
+          if (a?.token) setToken(a.token)
+          if (a?.user) setUser(a.user)
+        }
+      } catch {}
+    }
+    window.addEventListener('auth-changed', onAuthChanged)
+    return () => window.removeEventListener('auth-changed', onAuthChanged)
+  }, [])
+
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin'
 
   async function onSubmit(e) {
     e.preventDefault()
@@ -664,7 +731,9 @@ function AdminPage() {
       form.append('file', file)
       const lower = file.name.toLowerCase()
       const endpoint = lower.endsWith('.zip') ? '/api/upload_zip' : (lower.endsWith('.ndjson') ? '/api/import_ndjson' : '/api/upload_file')
-      const res = await fetch(endpoint, { method: 'POST', body: form })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(endpoint, { method: 'POST', headers, body: form })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -687,7 +756,9 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/api/clear', { method: 'POST' })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/clear', { method: 'POST', headers })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -706,12 +777,14 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/api/index_elastic_search', { method: 'POST' })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/index_elastic_search', { method: 'POST', headers })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
       if (!res.ok) throw new Error(data?.detail || data?.message || `HTTP ${res.status}`)
-      const msg = `Indexed ${data.indexed || 0} of ${data.total_docs || 0} docs into index '${data.index || 'subtitles'}'` 
+      const msg = `Indexed ${data.indexed || 0} of ${data.total_docs || 0} docs into index '${data.index || 'subtitles'}'`
       setStatus(msg)
     } catch (err) {
       setStatus(err.message || String(err))
@@ -726,7 +799,9 @@ function AdminPage() {
     if (!window.confirm('Delete all records from the database and clear Elasticsearch index?')) return
     try {
       setBusy(true)
-      const res = await fetch('/api/delete_all', { method: 'POST' })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/delete_all', { method: 'POST', headers })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -745,7 +820,9 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/api/export', { method: 'POST' })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/export', { method: 'POST', headers })
       if (!res.ok) {
         const text = await res.text()
         let data
@@ -781,7 +858,9 @@ function AdminPage() {
     setSummary(null)
     try {
       setBusy(true)
-      const res = await fetch('/api/stats', { method: 'POST' })
+      const headers = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch('/api/stats', { method: 'POST', headers })
       const text = await res.text()
       let data
       try { data = JSON.parse(text) } catch { data = { message: text } }
@@ -794,6 +873,50 @@ function AdminPage() {
     } finally {
       setBusy(false)
     }
+  }
+
+  // Show access denied if not admin
+  if (!user) {
+    return (
+      <>
+        <header>
+          <AuthWidget />
+          <div className="brand">MovieScope</div>
+          <div className="tagline">Admin Panel</div>
+          <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
+            <a href="/" style={{ marginRight: 12 }}>Home</a>
+          </nav>
+        </header>
+        <section className="results">
+          <div className="card" style={{ borderColor: 'rgba(229,9,20,0.5)', textAlign: 'center', padding: '40px 20px' }}>
+            <h2>Authentication Required</h2>
+            <p>Please log in to access the admin panel.</p>
+          </div>
+        </section>
+      </>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <>
+        <header>
+          <AuthWidget />
+          <div className="brand">MovieScope</div>
+          <div className="tagline">Admin Panel</div>
+          <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
+            <a href="/" style={{ marginRight: 12 }}>Home</a>
+          </nav>
+        </header>
+        <section className="results">
+          <div className="card" style={{ borderColor: 'rgba(229,9,20,0.5)', textAlign: 'center', padding: '40px 20px' }}>
+            <h2>Access Denied</h2>
+            <p>You do not have permission to access this page.</p>
+            <p>Admin role is required.</p>
+          </div>
+        </section>
+      </>
+    )
   }
 
   return (

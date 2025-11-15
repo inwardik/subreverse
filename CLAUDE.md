@@ -272,6 +272,18 @@
 3. Protected endpoints → JWT decoded → user loaded from PostgreSQL
 4. Frontend stores JWT in localStorage → sends in `Authorization: Bearer <token>`
 
+### Role-Based Access Control (RBAC)
+**Admin Access**: Admin endpoints are protected by both authentication and role checking.
+- **User Roles**: `user` (default), `admin`
+- **Admin Dependency**: `get_admin_user()` in `api/dependencies.py` verifies admin role
+- **Protected Admin Endpoints**:
+  - File upload/import: `/api/upload_zip`, `/api/import_ndjson`, `/api/upload_file`
+  - Data management: `/api/export`, `/api/delete_all`, `/api/clear`
+  - System maintenance: `/api/index_elastic_search`, `/api/index_db`, `POST /api/stats`
+- **Frontend Protection**: Admin page checks `user.role === 'admin'` before rendering
+- **Access Denied**: Returns HTTP 403 with "Admin access required" for non-admin users
+- **Testing**: Run `make test-admin` to verify admin access control
+
 ### Data Flow Example (Update Rating with Idiom Creation)
 ```
 Frontend Card component
@@ -370,6 +382,28 @@ POST /api/index_elastic_search
 curl -X POST http://localhost:8000/api/index_elastic_search
 ```
 
+### Running Tests
+```bash
+# Run all backend tests
+make test
+
+# Run only admin access control tests
+make test-admin
+
+# Run tests with coverage report
+make test-coverage
+
+# Install test dependencies
+make install-test-deps
+
+# Clean test artifacts
+make clean
+```
+
+**Prerequisites**: Ensure PostgreSQL and MongoDB test databases are running.
+- PostgreSQL test DB: `subreverse_test` (auto-created by tests)
+- MongoDB test DB: `subreverse_test` (auto-created by tests)
+
 ---
 
 ## Database Schema
@@ -466,14 +500,18 @@ Same schema as `idioms`
 - `GET /auth/me` - Current user info
 - `GET /self` - User info with energy recharge
 
-### Admin Endpoints
+### Admin Endpoints (Requires `admin` role)
 - `POST /api/upload_zip` - Upload subtitle ZIP
+- `POST /api/upload_file` - Upload single file for testing
 - `POST /api/import_ndjson` - Import data
 - `POST /api/export` - Export all data as NDJSON
 - `POST /api/clear` - Remove duplicates
 - `POST /api/delete_all` - Delete all pairs
 - `POST /api/index_elastic_search` - Reindex Elasticsearch
+- `POST /api/index_db` - Create MongoDB indexes
 - `POST /api/stats` - Compute statistics
+
+**Note**: All admin endpoints require authentication with a user account that has `role='admin'`. Non-admin users will receive HTTP 403 Forbidden.
 
 ### Authentication
 - `POST /auth/signup` - User registration
