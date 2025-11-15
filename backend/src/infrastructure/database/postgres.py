@@ -6,9 +6,9 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select, update, delete
 
-from src.domain.entities import User, Idiom
-from src.domain.interfaces import IUserRepository, IIdiomRepository
-from src.infrastructure.database.postgres_models import Base, UserModel, IdiomModel
+from domain.entities import User, Idiom
+from domain.interfaces import IUserRepository, IIdiomRepository
+from infrastructure.database.postgres_models import Base, UserModel, IdiomModel
 
 
 class PostgreSQLConnection:
