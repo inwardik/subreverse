@@ -246,6 +246,7 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
             explanation=idiom.explanation,
             source=idiom.source,
             status=idiom.status,
+            ai_score=idiom.ai_score,
             created_at=idiom.created_at or datetime.utcnow(),
             updated_at=idiom.updated_at or datetime.utcnow()
         )
@@ -280,6 +281,8 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
             idiom_model.source = idiom.source
         if idiom.status:
             idiom_model.status = idiom.status
+        if idiom.ai_score is not None:
+            idiom_model.ai_score = idiom.ai_score
 
         idiom_model.updated_at = datetime.utcnow()
 
@@ -346,6 +349,7 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
             explanation=model.explanation,
             source=model.source,
             status=model.status,
+            ai_score=model.ai_score,
             created_at=model.created_at,
             updated_at=model.updated_at
         )
