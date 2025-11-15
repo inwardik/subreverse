@@ -940,7 +940,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this idiom? It will be moved to deleted status.')) return
+    if (!confirm('Are you sure you want to delete this?')) return
 
     setSaving(true)
     setError('')
@@ -1008,11 +1008,15 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
           maxWidth: 600,
           width: '100%',
           maxHeight: '90vh',
-          overflow: 'auto',
+          overflow: 'visible',
           border: '1px solid rgba(255,255,255,0.2)',
           position: 'relative'
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation()
+          // Close dropdown when clicking anywhere in modal
+          if (dropdownOpen) setDropdownOpen(false)
+        }}
       >
         <button
           onClick={onClose}
@@ -1158,7 +1162,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
+        <div style={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
           {idiom.status === 'draft' ? (
             <>
               {/* Draft status: Publish button with dropdown */}
@@ -1169,11 +1173,12 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
                   padding: '10px 20px',
                   backgroundColor: 'rgba(34, 170, 85, 0.8)',
                   border: 'none',
-                  borderRadius: 6,
+                  borderRadius: '6px 0 0 6px',
                   color: 'white',
                   cursor: saving ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  minWidth: '100px'
                 }}
               >
                 {saving ? 'Publishing...' : 'Publish'}
@@ -1182,13 +1187,16 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
               {/* Dropdown menu button */}
               <div style={{ position: 'relative' }}>
                 <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDropdownOpen(!dropdownOpen)
+                  }}
                   disabled={saving}
                   style={{
                     padding: '10px 12px',
                     backgroundColor: 'rgba(34, 170, 85, 0.8)',
                     border: 'none',
-                    borderRadius: 6,
+                    borderRadius: '0 6px 6px 0',
                     color: 'white',
                     cursor: saving ? 'not-allowed' : 'pointer',
                     fontSize: '0.95rem',
@@ -1202,17 +1210,18 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
 
                 {dropdownOpen && (
                   <div
+                    onClick={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute',
                       top: '100%',
-                      right: 0,
+                      left: 'calc(-100px - 1px)',
                       marginTop: 4,
                       backgroundColor: '#2a2a2a',
                       border: '1px solid rgba(255,255,255,0.2)',
                       borderRadius: 6,
                       overflow: 'hidden',
                       zIndex: 1000,
-                      minWidth: 120
+                      minWidth: 'calc(100px + 1px + 36px)'
                     }}
                   >
                     <button
@@ -1267,11 +1276,12 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
                   padding: '10px 20px',
                   backgroundColor: 'rgba(74, 158, 255, 0.8)',
                   border: 'none',
-                  borderRadius: 6,
+                  borderRadius: '6px 0 0 6px',
                   color: 'white',
                   cursor: saving ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  minWidth: '100px'
                 }}
               >
                 {saving ? 'Saving...' : 'Save'}
@@ -1280,13 +1290,16 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
               {/* Dropdown menu button */}
               <div style={{ position: 'relative' }}>
                 <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDropdownOpen(!dropdownOpen)
+                  }}
                   disabled={saving}
                   style={{
                     padding: '10px 12px',
                     backgroundColor: 'rgba(74, 158, 255, 0.8)',
                     border: 'none',
-                    borderRadius: 6,
+                    borderRadius: '0 6px 6px 0',
                     color: 'white',
                     cursor: saving ? 'not-allowed' : 'pointer',
                     fontSize: '0.95rem',
@@ -1300,17 +1313,18 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
 
                 {dropdownOpen && (
                   <div
+                    onClick={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute',
                       top: '100%',
-                      right: 0,
+                      left: 'calc(-100px - 1px)',
                       marginTop: 4,
                       backgroundColor: '#2a2a2a',
                       border: '1px solid rgba(255,255,255,0.2)',
                       borderRadius: 6,
                       overflow: 'hidden',
                       zIndex: 1000,
-                      minWidth: 120
+                      minWidth: 'calc(100px + 1px + 36px)'
                     }}
                   >
                     <button
