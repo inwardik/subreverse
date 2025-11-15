@@ -579,7 +579,33 @@ function IdiomsView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingIdiom, setEditingIdiom] = useState(null)
-  const currentUser = getUserData()
+  const [currentUser, setCurrentUser] = useState(null)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('auth')
+      if (raw) {
+        const a = JSON.parse(raw)
+        if (a?.user) setCurrentUser(a.user)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    function onAuthChanged() {
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const a = JSON.parse(raw)
+          setCurrentUser(a?.user || null)
+        } else {
+          setCurrentUser(null)
+        }
+      } catch {}
+    }
+    window.addEventListener('auth-changed', onAuthChanged)
+    return () => window.removeEventListener('auth-changed', onAuthChanged)
+  }, [])
 
   const loadIdioms = async () => {
     try {
