@@ -576,7 +576,7 @@ function HomePage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+        <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
         <div className="tagline">Hunt your idiom among <a href="/content">{totalPhrases.toLocaleString()}</a> phrases</div>
         <div className="navbar">
           <button className={`nav-btn${tab==='search' ? ' active' : ''}`} onClick={() => { setTab('search'); try { window.location.hash = '#/search' } catch {} }}>Search</button>
@@ -842,7 +842,10 @@ function IdiomsView() {
                 {it.created_at && (
                   <>
                     <span>·</span>
-                    <span>{new Date(it.created_at).toLocaleDateString()}</span>
+                    <span>
+                      {new Date(it.created_at).toLocaleDateString()}
+                      {it.ai_mark !== null && it.ai_mark !== undefined && ` AI Score: ${it.ai_mark}`}
+                    </span>
                   </>
                 )}
 
@@ -1178,6 +1181,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
                   cursor: saving ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
                   fontWeight: '500',
+                  lineHeight: 1,
                   minWidth: '100px'
                 }}
               >
@@ -1281,6 +1285,7 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
                   cursor: saving ? 'not-allowed' : 'pointer',
                   fontSize: '0.95rem',
                   fontWeight: '500',
+                  lineHeight: 1,
                   minWidth: '100px'
                 }}
               >
@@ -1413,7 +1418,7 @@ function IdiomsPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+        <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
         <div className="tagline">Idioms</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1633,7 +1638,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+          <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1654,7 +1659,7 @@ function AdminPage() {
       <>
         <header>
           <AuthWidget />
-          <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+          <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
           <div className="tagline">Admin Panel</div>
           <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
             <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1675,7 +1680,7 @@ function AdminPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+        <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
         <div className="tagline">Search bilingual subtitles like a pro</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
@@ -1783,7 +1788,7 @@ function ContentPage() {
     <>
       <header>
         <AuthWidget />
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => { window.location.href = '/' }}>SubReverse</div>
+        <div className="brand"><a href="/" style={{ color: 'inherit', textDecoration: 'none' }}>SubReverse</a></div>
         <div className="tagline">Content: English subtitle files</div>
         <nav style={{ marginTop: '8px', fontSize: '0.95rem' }}>
           <a href="/" style={{ marginRight: 12 }}>Home</a>
