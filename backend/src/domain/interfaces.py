@@ -131,6 +131,11 @@ class IIdiomRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_for_user(self, user_id: Optional[str], limit: int = 100) -> List[Idiom]:
+        """Get published idioms + user's draft idioms (user's drafts first)."""
+        pass
+
+    @abstractmethod
     async def get_by_id(self, idiom_id: str) -> Optional[Idiom]:
         """Get idiom by ID."""
         pass

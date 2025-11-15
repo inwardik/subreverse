@@ -1,5 +1,5 @@
 """API routes for subtitle pairs, idioms, quotes, and stats."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from typing import List, Optional
 
 from application.subtitle_service import SubtitlePairService
@@ -7,6 +7,7 @@ from application.dto import (
     SubtitlePairResponseDTO,
     SubtitlePairUpdateDTO,
     IdiomResponseDTO,
+    IdiomUpdateDTO,
     QuoteResponseDTO,
     StatsResponseDTO,
     DeleteResponseDTO,
@@ -146,11 +147,23 @@ async def compute_stats(
 @router.get("/idioms", response_model=List[IdiomResponseDTO])
 async def list_idioms(
     limit: int = Query(100, description="Maximum number of idioms to return"),
-    status: Optional[str] = Query(None, description="Filter by status: draft, active, or deleted"),
+    request: Request,
     service: SubtitlePairService = Depends(get_subtitle_service)
 ):
-    """Return idioms sorted by creation time descending, with optional status filter."""
-    return await service.get_recent_idioms(limit, status)
+    """Return published idioms + user's draft idioms (user's drafts first) if authenticated."""
+    # Try to get current user from token (optional)
+    user_id = None
+    try:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            from .dependencies import get_current_user
+            user = await get_current_user(request)
+            user_id = user.id
+    except:
+        # If authentication fails, just show published idioms
+        pass
+
+    return await service.get_idioms_for_user(user_id, limit)
 
 
 @router.get("/quotes", response_model=List[QuoteResponseDTO])
@@ -159,6 +172,38 @@ async def list_quotes(
 ):
     """Return the 10 most recent quotes sorted by insertion time descending."""
     return await service.get_recent_quotes(10)
+
+
+@router.patch("/idioms/{idiom_id}", response_model=IdiomResponseDTO)
+async def update_idiom(
+    idiom_id: str,
+    update_data: IdiomUpdateDTO,
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    user: User = Depends(get_current_user)
+):
+    """Update an idiom. User must be the owner."""
+    try:
+        result = await service.update_idiom(idiom_id, update_data.model_dump(exclude_unset=True), user)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Idiom not found")
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.delete("/idioms/{idiom_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_idiom(
+    idiom_id: str,
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    user: User = Depends(get_current_user)
+):
+    """Soft-delete an idiom (set status to 'deleted'). User must be the owner."""
+    try:
+        result = await service.delete_idiom(idiom_id, user)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Idiom not found")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.get("/search", response_model=List[SubtitlePairResponseDTO])

@@ -101,6 +101,7 @@ class SubtitlePairService:
             if updated.category == "idiom":
                 idiom = Idiom(
                     id=None,  # Will be assigned by repo
+                    user_id=user.id,
                     en=updated.en,
                     ru=updated.ru,
                     title=None,
@@ -196,7 +197,64 @@ class SubtitlePairService:
     async def get_recent_idioms(self, limit: int = 100, status: Optional[str] = None) -> List[IdiomResponseDTO]:
         """Get recent idioms."""
         idioms = await self.idiom_repo.get_all(limit, status)
-        return [self._idiom_to_dto(i) for i in idioms]
+        return [await self._idiom_to_dto(i) for i in idioms]
+
+    async def get_idioms_for_user(self, user_id: Optional[str], limit: int = 100) -> List[IdiomResponseDTO]:
+        """Get published idioms + user's draft idioms (user's drafts first)."""
+        idioms = await self.idiom_repo.get_for_user(user_id, limit)
+        return [await self._idiom_to_dto(i) for i in idioms]
+
+    async def update_idiom(self, idiom_id: str, update_data: dict, user: User) -> Optional[IdiomResponseDTO]:
+        """Update an idiom. User must be the owner."""
+        # Check if idiom exists and user is the owner
+        existing = await self.idiom_repo.get_by_id(idiom_id)
+        if not existing:
+            return None
+
+        if existing.user_id != user.id:
+            raise ValueError("You can only edit your own idioms")
+
+        # Create partial Idiom entity with updated fields
+        idiom_update = Idiom(
+            id=idiom_id,
+            user_id=existing.user_id,
+            en=update_data.get("en", existing.en),
+            ru=update_data.get("ru", existing.ru),
+            title=update_data.get("title", existing.title),
+            explanation=update_data.get("explanation", existing.explanation),
+            source=update_data.get("source", existing.source),
+            status=update_data.get("status", existing.status)
+        )
+
+        updated = await self.idiom_repo.update(idiom_id, idiom_update)
+        if updated:
+            return await self._idiom_to_dto(updated)
+        return None
+
+    async def delete_idiom(self, idiom_id: str, user: User) -> bool:
+        """Soft-delete an idiom (set status to 'deleted'). User must be the owner."""
+        # Check if idiom exists and user is the owner
+        existing = await self.idiom_repo.get_by_id(idiom_id)
+        if not existing:
+            return False
+
+        if existing.user_id != user.id:
+            raise ValueError("You can only delete your own idioms")
+
+        # Soft delete by setting status to 'deleted'
+        idiom_update = Idiom(
+            id=idiom_id,
+            user_id=existing.user_id,
+            en=existing.en,
+            ru=existing.ru,
+            title=existing.title,
+            explanation=existing.explanation,
+            source=existing.source,
+            status="deleted"
+        )
+
+        updated = await self.idiom_repo.update(idiom_id, idiom_update)
+        return updated is not None
 
     async def get_recent_quotes(self, limit: int = 10) -> List[QuoteResponseDTO]:
         """Get recent quotes."""
@@ -271,10 +329,16 @@ class SubtitlePairService:
             seq_id=pair.seq_id
         )
 
-    @staticmethod
-    def _idiom_to_dto(idiom: Idiom) -> IdiomResponseDTO:
+    async def _idiom_to_dto(self, idiom: Idiom) -> IdiomResponseDTO:
+        """Convert idiom entity to DTO with username."""
+        # Fetch username
+        user = await self.user_repo.get_by_id(idiom.user_id)
+        username = user.username if user else "Unknown"
+
         return IdiomResponseDTO(
             _id=idiom.id,
+            user_id=idiom.user_id,
+            username=username,
             en=idiom.en,
             ru=idiom.ru,
             title=idiom.title,

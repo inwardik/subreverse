@@ -28,12 +28,13 @@ class SubtitlePair:
 class Idiom:
     """Domain entity for idiom collection."""
     id: Optional[str]
+    user_id: str
     en: str
     ru: str
     title: Optional[str] = None
     explanation: Optional[str] = None
     source: Optional[str] = None
-    status: str = "draft"  # draft, active, deleted
+    status: str = "draft"  # draft, published, deleted
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
