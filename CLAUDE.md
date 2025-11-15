@@ -20,37 +20,46 @@
 
 ```
 /home/user/subreverse/
-├── backend/src/
-│   ├── domain/              # CORE LAYER (no dependencies)
-│   │   ├── entities.py      # Business entities (SubtitlePair, User, etc.)
-│   │   └── interfaces.py    # Abstract interfaces (repositories, handlers)
-│   ├── application/         # USE CASES LAYER
-│   │   ├── subtitle_service.py  # Main business logic
-│   │   ├── auth_service.py      # Authentication logic
-│   │   └── dto.py              # Data Transfer Objects (Pydantic)
-│   ├── infrastructure/      # EXTERNAL DEPENDENCIES LAYER
-│   │   ├── database/
-│   │   │   ├── postgres.py             # PostgreSQL connection + User/Idiom repos
-│   │   │   ├── postgres_models.py      # SQLAlchemy models (User, Idiom)
-│   │   │   ├── postgres_schemas.py     # Pydantic schemas for PostgreSQL
-│   │   │   ├── mongodb.py              # MongoDB connection (legacy User repo)
-│   │   │   └── subtitle_mongo_repo.py  # Subtitle/Quote repos
-│   │   ├── elasticsearch_engine.py     # Search engine implementation
-│   │   ├── security/
-│   │   │   ├── password.py    # SHA256 password hashing
-│   │   │   └── jwt_handler.py # Manual JWT implementation
-│   │   ├── srt_parser.py      # SRT subtitle parser
-│   │   └── config.py          # Application settings
-│   └── api/                 # HTTP LAYER (outermost)
-│       ├── main.py          # FastAPI app setup
-│       ├── subtitle_routes.py   # Subtitle endpoints
-│       ├── upload_routes.py     # File upload endpoints
-│       ├── auth_routes.py       # Authentication endpoints
-│       ├── self_routes.py       # User self-service endpoints
-│       └── dependencies.py      # Dependency injection container
+├── backend/
+│   ├── src/
+│   │   ├── domain/              # CORE LAYER (no dependencies)
+│   │   │   ├── entities.py      # Business entities (SubtitlePair, User, Idiom)
+│   │   │   └── interfaces.py    # Abstract interfaces (repositories, handlers)
+│   │   ├── application/         # USE CASES LAYER
+│   │   │   ├── subtitle_service.py  # Main business logic
+│   │   │   ├── auth_service.py      # Authentication logic
+│   │   │   └── dto.py              # Data Transfer Objects (Pydantic)
+│   │   ├── infrastructure/      # EXTERNAL DEPENDENCIES LAYER
+│   │   │   ├── database/
+│   │   │   │   ├── postgres.py             # PostgreSQL connection + User/Idiom repos
+│   │   │   │   ├── postgres_models.py      # SQLAlchemy models (User, Idiom)
+│   │   │   │   ├── postgres_schemas.py     # Pydantic schemas for PostgreSQL
+│   │   │   │   ├── mongodb.py              # MongoDB connection (legacy User repo)
+│   │   │   │   └── subtitle_mongo_repo.py  # Subtitle/Quote repos
+│   │   │   ├── elasticsearch_engine.py     # Search engine implementation
+│   │   │   ├── security/
+│   │   │   │   ├── password.py    # SHA256 password hashing
+│   │   │   │   └── jwt_handler.py # Manual JWT implementation
+│   │   │   ├── srt_parser.py      # SRT subtitle parser
+│   │   │   └── config.py          # Application settings
+│   │   └── api/                 # HTTP LAYER (outermost)
+│   │       ├── main.py          # FastAPI app setup
+│   │       ├── subtitle_routes.py   # Subtitle endpoints
+│   │       ├── upload_routes.py     # File upload endpoints
+│   │       ├── auth_routes.py       # Authentication endpoints
+│   │       ├── self_routes.py       # User self-service endpoints
+│   │       └── dependencies.py      # Dependency injection container
+│   ├── alembic/             # Database migrations (Alembic)
+│   │   ├── versions/        # Migration files
+│   │   │   └── 001_initial_schema.py
+│   │   ├── env.py           # Alembic environment config
+│   │   └── script.py.mako   # Migration template
+│   ├── alembic.ini          # Alembic configuration
+│   └── requirements.txt     # Python dependencies
 ├── frontend/src/
-│   ├── App.jsx             # Single-file SPA (954 lines)
+│   ├── App.jsx             # Single-file SPA (~1000 lines)
 │   └── main.jsx            # Entry point
+├── Makefile                # Build commands (test, migrate, etc.)
 ├── docker-compose.yml      # Full stack orchestration
 └── nginx.conf             # Reverse proxy configuration
 ```
@@ -215,10 +224,28 @@
 - Slow path: Fetch all from file, sort by time
 
 ### Idiom Management
-- Clicking 'idiom' button creates a new record in PostgreSQL with status='draft'
-- Idioms can be filtered by status (draft/active/deleted)
-- Source field stores the original file reference
-- Title and explanation can be added later for editorial purposes
+- **User Ownership**: Each idiom belongs to a user (user_id field)
+- **Creating Idioms**: Clicking 'idiom' button creates a draft with user_id
+- **Status Workflow**:
+  - `draft` - visible only to owner, editable
+  - `published` - visible to everyone, editable by owner
+  - `deleted` - soft-deleted, not visible
+- **Editing**: Modal-based interface with fields:
+  - Title (clickable, redirects to quoted search)
+  - English & Russian text
+  - Explanation (detailed description)
+  - Source (e.g., movie name)
+- **Actions**:
+  - **Save** - update without changing status
+  - **Publish** - make visible to all users
+  - **Delete Draft** - soft-delete (status='deleted')
+- **Visibility**:
+  - Authenticated users see: published idioms + their drafts (drafts first)
+  - Anonymous users see: only published idioms
+- **API Endpoints**:
+  - `GET /api/idioms` - personalized list (published + user's drafts)
+  - `PATCH /api/idioms/{id}` - update (owner only)
+  - `DELETE /api/idioms/{id}` - soft-delete (owner only)
 
 ### Search Features
 - Standard search: Word-based matching (operator: "and")
@@ -404,6 +431,56 @@ make clean
 - PostgreSQL test DB: `subreverse_test` (auto-created by tests)
 - MongoDB test DB: `subreverse_test` (auto-created by tests)
 
+### Database Migrations
+
+**SubReverse uses Alembic for PostgreSQL schema migrations.** All migration commands are available via Makefile:
+
+```bash
+# Run pending migrations (apply all unapplied migrations)
+make migrate
+
+# Check current migration version
+make migrate-current
+
+# Show migration history
+make migrate-history
+
+# Generate new migration from model changes (autogenerate)
+make migrate-auto
+# You'll be prompted for a migration message
+
+# Rollback last migration (use with caution!)
+make migrate-downgrade
+```
+
+**Migration Workflow**:
+
+1. **Modify SQLAlchemy models** in `backend/src/infrastructure/database/postgres_models.py`
+2. **Generate migration**: `make migrate-auto`
+3. **Review generated file** in `backend/alembic/versions/`
+4. **Apply migration**: `make migrate`
+
+**Manual Migration Creation**:
+```bash
+cd backend
+alembic revision -m "description of changes"
+# Edit the generated file in alembic/versions/
+# Add upgrade() and downgrade() logic
+alembic upgrade head
+```
+
+**Important Notes**:
+- Always review auto-generated migrations before applying
+- Test migrations on dev/staging before production
+- Alembic tracks applied migrations in `alembic_version` table
+- Migration files are in `backend/alembic/versions/`
+- Initial schema migration: `001_initial_schema.py`
+
+**Environment Configuration**:
+- Alembic uses `POSTGRES_URL` from environment (if set)
+- Falls back to URL in `backend/alembic.ini`
+- Format: `postgresql+asyncpg://user:password@host:port/database`
+
 ---
 
 ## Database Schema
@@ -448,11 +525,12 @@ CREATE INDEX idx_users_email ON users(email);
 ```
 
 ### `idioms` Table (PostgreSQL)
-**Note**: Idiom data has been migrated from MongoDB to PostgreSQL for better structured data support and status management.
+**Note**: Idiom data has been migrated from MongoDB to PostgreSQL for better structured data support, user ownership, and status management.
 
 ```sql
 CREATE TABLE idioms (
   id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
   title VARCHAR(255),
   en TEXT NOT NULL,
   ru TEXT NOT NULL,
@@ -464,9 +542,18 @@ CREATE TABLE idioms (
 );
 
 CREATE INDEX idx_idioms_status ON idioms(status);
+CREATE INDEX idx_idioms_user_id ON idioms(user_id);
 ```
 
-**Status values**: `draft` (newly created), `active` (approved), `deleted` (soft-deleted)
+**Status values**:
+- `draft` - visible only to owner, editable
+- `published` - visible to everyone, editable by owner
+- `deleted` - soft-deleted, not visible in lists
+
+**User Ownership**:
+- Each idiom belongs to a user (`user_id` references `users.id`)
+- Only the owner can edit or delete their idioms
+- Idioms list shows published idioms + user's drafts (if authenticated)
 
 ### `quotes` Collection
 Same schema as `idioms`
@@ -492,11 +579,13 @@ Same schema as `idioms`
 - `GET /api/search?q={query}` - Search pairs
 - `GET /api/search/{id}/?offset_en={n}&offset_ru={m}` - Get by ID with temporal offset
 - `GET /api/stats` - System statistics
-- `GET /api/idioms?limit=100&status=draft` - List idioms with optional status filter
+- `GET /api/idioms?limit=100` - List idioms (published + user's drafts if authenticated)
 - `GET /api/quotes?limit=50` - Recent quotes
 
 ### Authenticated Endpoints
 - `PATCH /api/search/{id}/?delta={n}&category={cat}` - Update pair (costs 1 energy)
+- `PATCH /api/idioms/{id}` - Update idiom (owner only, requires auth)
+- `DELETE /api/idioms/{id}` - Soft-delete idiom (owner only, requires auth)
 - `GET /auth/me` - Current user info
 - `GET /self` - User info with energy recharge
 
@@ -546,17 +635,33 @@ Same schema as `idioms`
 ## Future Improvements (TODOs)
 
 Based on codebase analysis:
-- [ ] Add comprehensive test suite
+
+**Completed** ✅:
+- [x] Idiom editing capabilities (title, explanation fields)
+- [x] Admin UI for managing idiom status (draft → published/deleted)
+- [x] Database migrations with Alembic
+- [x] User ownership for idioms
+- [x] Admin access control tests
+
+**In Progress**:
+- [ ] Add comprehensive test suite (basic tests exist)
 - [ ] Implement leaderboard functionality
 - [ ] Complete quotes page UI (migrate to PostgreSQL similar to idioms)
+
+**Planned**:
 - [ ] Add structured logging (replace print statements)
 - [ ] Add health check for database connections
-- [ ] Admin UI for managing idiom status (draft → active/deleted)
 - [ ] Request-level rate limiting (currently only energy-based)
 - [ ] Admin user management UI
 - [ ] Batch operations for better performance
 - [ ] Search query suggestions/autocomplete
-- [ ] Idiom editing capabilities (title, explanation fields)
+- [ ] Idiom ratings/likes system
+- [ ] Comments on idioms
+- [ ] Idiom pagination (currently loads all)
+- [ ] Export idioms as study cards/Anki decks
+- [ ] Admin approval workflow for published idioms
+- [ ] Filtering idioms by author
+- [ ] Email notifications for idiom comments/likes
 
 ---
 
