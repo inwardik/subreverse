@@ -611,8 +611,13 @@ function IdiomsView() {
     try {
       setLoading(true)
       const headers = {}
-      const token = localStorage.getItem('authToken')
-      if (token) headers['Authorization'] = `Bearer ${token}`
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const auth = JSON.parse(raw)
+          if (auth?.token) headers['Authorization'] = `Bearer ${auth.token}`
+        }
+      } catch {}
 
       const res = await fetch('/api/idioms', { headers })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -657,41 +662,43 @@ function IdiomsView() {
                 border: '1px solid rgba(255,255,255,0.15)',
                 borderRadius: 8,
                 padding: 16,
-                backgroundColor: 'rgba(255,255,255,0.02)',
-                position: 'relative'
+                backgroundColor: 'rgba(255,255,255,0.02)'
               }}
             >
-              {/* Status badge in top right */}
-              <div style={{ position: 'absolute', top: 12, right: 12 }}>
-                <span style={{
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  backgroundColor: it.status === 'published' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
-                  fontSize: '0.8rem',
-                  fontWeight: '500'
-                }}>{it.status || 'draft'}</span>
-              </div>
+              {/* Title at the top (clickable if exists) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                {it.title ? (
+                  <h3
+                    style={{
+                      fontSize: '1.2rem',
+                      fontWeight: 'bold',
+                      margin: 0,
+                      color: '#4a9eff',
+                      cursor: 'pointer',
+                      flex: 1
+                    }}
+                    onClick={() => handleSearch(it.title)}
+                  >
+                    {it.title}
+                  </h3>
+                ) : (
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#888', flex: 1 }}>
+                    (Untitled)
+                  </h3>
+                )}
 
-              {/* Title (clickable if exists) */}
-              {it.title ? (
-                <h3
-                  style={{
-                    fontSize: '1.2rem',
-                    fontWeight: 'bold',
-                    marginBottom: 8,
-                    color: '#4a9eff',
-                    cursor: 'pointer',
-                    marginRight: 80
-                  }}
-                  onClick={() => handleSearch(it.title)}
-                >
-                  {it.title}
-                </h3>
-              ) : (
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: 8, color: '#888', marginRight: 80 }}>
-                  (Untitled)
-                </h3>
-              )}
+                {/* Status badge - only show for owner */}
+                {isOwner && (
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: 4,
+                    backgroundColor: it.status === 'published' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
+                    fontSize: '0.8rem',
+                    fontWeight: '500',
+                    marginLeft: 12
+                  }}>{it.status || 'draft'}</span>
+                )}
+              </div>
 
               {/* Author */}
               <div style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: 12 }}>
@@ -779,7 +786,15 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
     setError('')
 
     try {
-      const token = localStorage.getItem('authToken')
+      let token = null
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const auth = JSON.parse(raw)
+          token = auth?.token || null
+        }
+      } catch {}
+
       if (!token) {
         setError('You must be logged in')
         return
@@ -819,7 +834,15 @@ function IdiomEditModal({ idiom, onClose, onSaved }) {
     setError('')
 
     try {
-      const token = localStorage.getItem('authToken')
+      let token = null
+      try {
+        const raw = localStorage.getItem('auth')
+        if (raw) {
+          const auth = JSON.parse(raw)
+          token = auth?.token || null
+        }
+      } catch {}
+
       if (!token) {
         setError('You must be logged in')
         return
