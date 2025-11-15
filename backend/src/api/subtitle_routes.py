@@ -135,10 +135,12 @@ async def compute_stats(
 
 @router.get("/idioms", response_model=List[IdiomResponseDTO])
 async def list_idioms(
+    limit: int = Query(100, description="Maximum number of idioms to return"),
+    status: Optional[str] = Query(None, description="Filter by status: draft, active, or deleted"),
     service: SubtitlePairService = Depends(get_subtitle_service)
 ):
-    """Return the 10 most recent idioms sorted by insertion time descending."""
-    return await service.get_recent_idioms(10)
+    """Return idioms sorted by creation time descending, with optional status filter."""
+    return await service.get_recent_idioms(limit, status)
 
 
 @router.get("/quotes", response_model=List[QuoteResponseDTO])

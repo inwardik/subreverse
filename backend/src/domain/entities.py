@@ -27,14 +27,15 @@ class SubtitlePair:
 @dataclass
 class Idiom:
     """Domain entity for idiom collection."""
-    id: str
+    id: Optional[str]
     en: str
     ru: str
-    pair_seq_id: Optional[int] = None
-    rating: int = 0
-    filename: Optional[str] = None
-    time: Optional[str] = None
-    owner_username: Optional[str] = None
+    title: Optional[str] = None
+    explanation: Optional[str] = None
+    source: Optional[str] = None
+    status: str = "draft"  # draft, active, deleted
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 @dataclass

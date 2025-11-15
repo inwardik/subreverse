@@ -100,16 +100,15 @@ class SubtitlePairService:
             # Handle idiom/quote mirroring
             if updated.category == "idiom":
                 idiom = Idiom(
-                    id="",  # Will be assigned by repo
+                    id=None,  # Will be assigned by repo
                     en=updated.en,
                     ru=updated.ru,
-                    pair_seq_id=updated.seq_id,
-                    rating=updated.rating,
-                    filename=updated.file_en.replace("_en.srt", "") if updated.file_en else None,
-                    time=updated.time_en,
-                    owner_username=user.username
+                    title=None,
+                    explanation=None,
+                    source=updated.file_en.replace("_en.srt", "") if updated.file_en else None,
+                    status="draft"
                 )
-                await self.idiom_repo.upsert(idiom)
+                await self.idiom_repo.create(idiom)
 
             if updated.category == "quote":
                 quote = Quote(
@@ -194,9 +193,9 @@ class SubtitlePairService:
             updated_at=stats.updated_at
         )
 
-    async def get_recent_idioms(self, limit: int = 10) -> List[IdiomResponseDTO]:
+    async def get_recent_idioms(self, limit: int = 100, status: Optional[str] = None) -> List[IdiomResponseDTO]:
         """Get recent idioms."""
-        idioms = await self.idiom_repo.get_recent(limit)
+        idioms = await self.idiom_repo.get_all(limit, status)
         return [self._idiom_to_dto(i) for i in idioms]
 
     async def get_recent_quotes(self, limit: int = 10) -> List[QuoteResponseDTO]:
@@ -278,10 +277,12 @@ class SubtitlePairService:
             _id=idiom.id,
             en=idiom.en,
             ru=idiom.ru,
-            filename=idiom.filename,
-            time=idiom.time,
-            owner_username=idiom.owner_username,
-            rating=idiom.rating
+            title=idiom.title,
+            explanation=idiom.explanation,
+            source=idiom.source,
+            status=idiom.status,
+            created_at=idiom.created_at,
+            updated_at=idiom.updated_at
         )
 
     @staticmethod

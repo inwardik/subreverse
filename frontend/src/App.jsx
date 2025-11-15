@@ -603,15 +603,20 @@ function IdiomsView() {
   return (
     <div className="idioms-list" style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
       {items.map((it, idx) => (
-        <div key={it._id || idx} className="idiom-item" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: 8 }}>
+        <div key={it._id || idx} className="idiom-item" style={{ borderBottom: '1px solid rgba(255,255,255,0.12)', paddingBottom: 12 }}>
+          {it.title && <div className="title" style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: 6, color: '#4a9eff' }}>{it.title}</div>}
           <div className="en" style={{ fontSize: '1.05rem', marginBottom: 4 }}>{it.en}</div>
-          <div className="ru" style={{ opacity: 0.9 }}>{it.ru}</div>
+          <div className="ru" style={{ opacity: 0.9, marginBottom: 4 }}>{it.ru}</div>
+          {it.explanation && <div className="explanation" style={{ fontSize: '0.95rem', fontStyle: 'italic', opacity: 0.8, marginTop: 6, marginBottom: 4 }}>{it.explanation}</div>}
           <div className="meta" style={{ marginTop: 4, fontSize: '0.9rem', opacity: 0.75 }}>
-            <span>{it.filename || 'unknown'}</span>
-            <span> @ </span>
-            <span>{it.time || '?'}</span>
-            <span> · </span>
-            <span>{it.owner_username || 'anon'}</span>
+            {it.source && <><span>{it.source}</span><span> · </span></>}
+            <span style={{
+              padding: '2px 6px',
+              borderRadius: 4,
+              backgroundColor: it.status === 'active' ? '#2a5' : it.status === 'deleted' ? '#a22' : '#555',
+              fontSize: '0.85rem'
+            }}>{it.status || 'draft'}</span>
+            {it.created_at && <><span> · </span><span>{new Date(it.created_at).toLocaleDateString()}</span></>}
           </div>
         </div>
       ))}
