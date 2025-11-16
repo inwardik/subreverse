@@ -8,6 +8,8 @@ from application.dto import (
     SubtitlePairUpdateDTO,
     IdiomResponseDTO,
     IdiomUpdateDTO,
+    IdiomLikeActionDTO,
+    IdiomLikeResponseDTO,
     QuoteResponseDTO,
     StatsResponseDTO,
     DeleteResponseDTO,
@@ -193,6 +195,31 @@ async def delete_idiom(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Idiom not found")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.post("/idioms/{idiom_id}/like", response_model=IdiomLikeResponseDTO)
+async def like_idiom(
+    idiom_id: str,
+    action_data: IdiomLikeActionDTO,
+    service: SubtitlePairService = Depends(get_subtitle_service),
+    user: User = Depends(get_current_user)
+):
+    """
+    Like, dislike, or remove like/dislike from an idiom.
+    Requires authentication. Users cannot like/dislike their own idioms.
+
+    Actions:
+    - "like": Add or toggle like
+    - "dislike": Add or toggle dislike
+    - "remove": Remove existing like/dislike
+    """
+    try:
+        result = await service.handle_idiom_like(idiom_id, action_data.action, user)
+        return result
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get("/search", response_model=List[SubtitlePairResponseDTO])

@@ -4,11 +4,11 @@ from typing import Optional, List
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 
-from domain.entities import User, Idiom
-from domain.interfaces import IUserRepository, IIdiomRepository
-from infrastructure.database.postgres_models import Base, UserModel, IdiomModel
+from domain.entities import User, Idiom, IdiomLike
+from domain.interfaces import IUserRepository, IIdiomRepository, IIdiomLikeRepository
+from infrastructure.database.postgres_models import Base, UserModel, IdiomModel, IdiomLikeModel
 
 
 class PostgreSQLConnection:
@@ -337,6 +337,17 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
             idiom_models = result.scalars().all()
             return [self._model_to_entity(model) for model in idiom_models]
 
+    async def update_likes(self, idiom_id: str, likes: int, dislikes: int) -> bool:
+        """Update likes and dislikes counts for an idiom."""
+        stmt = (
+            update(IdiomModel)
+            .where(IdiomModel.id == idiom_id)
+            .values(likes=likes, dislikes=dislikes, updated_at=datetime.utcnow())
+        )
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
     @staticmethod
     def _model_to_entity(model: IdiomModel) -> Idiom:
         """Convert SQLAlchemy model to domain entity."""
@@ -350,6 +361,113 @@ class PostgreSQLIdiomRepository(IIdiomRepository):
             source=model.source,
             status=model.status,
             ai_score=model.ai_score,
+            likes=model.likes,
+            dislikes=model.dislikes,
+            created_at=model.created_at,
+            updated_at=model.updated_at
+        )
+
+
+class PostgreSQLIdiomLikeRepository(IIdiomLikeRepository):
+    """PostgreSQL implementation of IdiomLike repository."""
+
+    def __init__(self, session: AsyncSession):
+        """Initialize repository with database session.
+
+        Args:
+            session: SQLAlchemy async session
+        """
+        self.session = session
+
+    async def get_by_user_and_idiom(self, user_id: str, idiom_id: str) -> Optional[IdiomLike]:
+        """Get like/dislike by user and idiom."""
+        result = await self.session.execute(
+            select(IdiomLikeModel)
+            .where(IdiomLikeModel.user_id == user_id)
+            .where(IdiomLikeModel.idiom_id == idiom_id)
+        )
+        like_model = result.scalar_one_or_none()
+        return self._model_to_entity(like_model) if like_model else None
+
+    async def get_by_idiom(self, idiom_id: str) -> List[IdiomLike]:
+        """Get all likes/dislikes for an idiom."""
+        result = await self.session.execute(
+            select(IdiomLikeModel).where(IdiomLikeModel.idiom_id == idiom_id)
+        )
+        like_models = result.scalars().all()
+        return [self._model_to_entity(model) for model in like_models]
+
+    async def get_user_likes_for_idioms(self, user_id: str, idiom_ids: List[str]) -> List[IdiomLike]:
+        """Get user's likes for a list of idiom IDs (for batch queries)."""
+        result = await self.session.execute(
+            select(IdiomLikeModel)
+            .where(IdiomLikeModel.user_id == user_id)
+            .where(IdiomLikeModel.idiom_id.in_(idiom_ids))
+        )
+        like_models = result.scalars().all()
+        return [self._model_to_entity(model) for model in like_models]
+
+    async def create(self, like: IdiomLike) -> IdiomLike:
+        """Create a new like/dislike."""
+        like_model = IdiomLikeModel(
+            id=like.id or str(uuid4()),
+            user_id=like.user_id,
+            idiom_id=like.idiom_id,
+            type=like.type,
+            created_at=like.created_at or datetime.utcnow(),
+            updated_at=like.updated_at or datetime.utcnow()
+        )
+        self.session.add(like_model)
+        await self.session.commit()
+        await self.session.refresh(like_model)
+
+        # Update like entity with generated ID if it was None
+        like.id = like_model.id
+        return like
+
+    async def update(self, like_id: str, like_type: str) -> Optional[IdiomLike]:
+        """Update like type (like <-> dislike)."""
+        result = await self.session.execute(
+            select(IdiomLikeModel).where(IdiomLikeModel.id == like_id)
+        )
+        like_model = result.scalar_one_or_none()
+
+        if not like_model:
+            return None
+
+        like_model.type = like_type
+        like_model.updated_at = datetime.utcnow()
+
+        await self.session.commit()
+        await self.session.refresh(like_model)
+        return self._model_to_entity(like_model)
+
+    async def delete(self, like_id: str) -> bool:
+        """Delete a like/dislike."""
+        stmt = delete(IdiomLikeModel).where(IdiomLikeModel.id == like_id)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def count_by_type(self, idiom_id: str, like_type: str) -> int:
+        """Count likes or dislikes for an idiom."""
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(IdiomLikeModel)
+            .where(IdiomLikeModel.idiom_id == idiom_id)
+            .where(IdiomLikeModel.type == like_type)
+        )
+        count = result.scalar_one()
+        return count
+
+    @staticmethod
+    def _model_to_entity(model: IdiomLikeModel) -> IdiomLike:
+        """Convert SQLAlchemy model to domain entity."""
+        return IdiomLike(
+            id=model.id,
+            user_id=model.user_id,
+            idiom_id=model.idiom_id,
+            type=model.type,
             created_at=model.created_at,
             updated_at=model.updated_at
         )

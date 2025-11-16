@@ -1,7 +1,7 @@
 """Repository interfaces - abstractions for data access."""
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from .entities import SubtitlePair, User, Idiom, Quote, SystemStats
+from .entities import SubtitlePair, User, Idiom, IdiomLike, Quote, SystemStats
 
 
 class ISubtitlePairRepository(ABC):
@@ -153,6 +153,50 @@ class IIdiomRepository(ABC):
     @abstractmethod
     async def delete(self, idiom_id: str) -> bool:
         """Delete an idiom by ID."""
+        pass
+
+    @abstractmethod
+    async def update_likes(self, idiom_id: str, likes: int, dislikes: int) -> bool:
+        """Update likes and dislikes counts for an idiom."""
+        pass
+
+
+class IIdiomLikeRepository(ABC):
+    """Abstract repository interface for IdiomLike entities."""
+
+    @abstractmethod
+    async def get_by_user_and_idiom(self, user_id: str, idiom_id: str) -> Optional[IdiomLike]:
+        """Get like/dislike by user and idiom."""
+        pass
+
+    @abstractmethod
+    async def get_by_idiom(self, idiom_id: str) -> List[IdiomLike]:
+        """Get all likes/dislikes for an idiom."""
+        pass
+
+    @abstractmethod
+    async def get_user_likes_for_idioms(self, user_id: str, idiom_ids: List[str]) -> List[IdiomLike]:
+        """Get user's likes for a list of idiom IDs (for batch queries)."""
+        pass
+
+    @abstractmethod
+    async def create(self, like: IdiomLike) -> IdiomLike:
+        """Create a new like/dislike."""
+        pass
+
+    @abstractmethod
+    async def update(self, like_id: str, like_type: str) -> Optional[IdiomLike]:
+        """Update like type (like <-> dislike)."""
+        pass
+
+    @abstractmethod
+    async def delete(self, like_id: str) -> bool:
+        """Delete a like/dislike."""
+        pass
+
+    @abstractmethod
+    async def count_by_type(self, idiom_id: str, like_type: str) -> int:
+        """Count likes or dislikes for an idiom."""
         pass
 
 

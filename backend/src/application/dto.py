@@ -40,6 +40,9 @@ class IdiomResponseDTO(BaseModel):
     source: Optional[str] = None
     status: str = "draft"
     ai_score: Optional[int] = None
+    likes: int = 0
+    dislikes: int = 0
+    like_action: Optional[str] = None  # "like", "dislike", or "not_applicable" (for own idioms)
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -57,6 +60,25 @@ class IdiomUpdateDTO(BaseModel):
     source: Optional[str] = None
     status: Optional[str] = None  # draft, published, deleted
     ai_score: Optional[int] = None
+
+
+class IdiomLikeActionDTO(BaseModel):
+    """DTO for idiom like/dislike action."""
+    action: str = Field(..., description="Action: 'like', 'dislike', or 'remove'")
+
+    class Config:
+        from_attributes = True
+
+
+class IdiomLikeResponseDTO(BaseModel):
+    """DTO for idiom like response."""
+    success: bool
+    likes: int
+    dislikes: int
+    user_action: Optional[str] = None  # "like" or "dislike" or None if removed
+
+    class Config:
+        from_attributes = True
 
 
 class QuoteResponseDTO(BaseModel):

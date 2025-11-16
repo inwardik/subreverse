@@ -2,10 +2,11 @@
 from typing import List, Optional
 from datetime import datetime
 
-from domain.entities import SubtitlePair, Idiom, Quote, SystemStats, User
+from domain.entities import SubtitlePair, Idiom, IdiomLike, Quote, SystemStats, User
 from domain.interfaces import (
     ISubtitlePairRepository,
     IIdiomRepository,
+    IIdiomLikeRepository,
     IQuoteRepository,
     IStatsRepository,
     IUserRepository,
@@ -15,6 +16,7 @@ from application.dto import (
     SubtitlePairResponseDTO,
     SubtitlePairUpdateDTO,
     IdiomResponseDTO,
+    IdiomLikeResponseDTO,
     QuoteResponseDTO,
     StatsResponseDTO,
     DeleteResponseDTO,
@@ -29,6 +31,7 @@ class SubtitlePairService:
         self,
         pair_repo: ISubtitlePairRepository,
         idiom_repo: IIdiomRepository,
+        idiom_like_repo: IIdiomLikeRepository,
         quote_repo: IQuoteRepository,
         stats_repo: IStatsRepository,
         user_repo: IUserRepository,
@@ -36,6 +39,7 @@ class SubtitlePairService:
     ):
         self.pair_repo = pair_repo
         self.idiom_repo = idiom_repo
+        self.idiom_like_repo = idiom_like_repo
         self.quote_repo = quote_repo
         self.stats_repo = stats_repo
         self.user_repo = user_repo
@@ -200,9 +204,18 @@ class SubtitlePairService:
         return [await self._idiom_to_dto(i) for i in idioms]
 
     async def get_idioms_for_user(self, user_id: Optional[str], limit: int = 100) -> List[IdiomResponseDTO]:
-        """Get published idioms + user's draft idioms (user's drafts first)."""
+        """Get published idioms + user's draft idioms (user's drafts first) with like_action."""
         idioms = await self.idiom_repo.get_for_user(user_id, limit)
-        return [await self._idiom_to_dto(i) for i in idioms]
+
+        # Get user's likes for all idioms in batch (if authenticated)
+        user_likes_map = {}
+        if user_id:
+            idiom_ids = [i.id for i in idioms if i.id]
+            user_likes = await self.idiom_like_repo.get_user_likes_for_idioms(user_id, idiom_ids)
+            user_likes_map = {like.idiom_id: like.type for like in user_likes}
+
+        # Convert to DTOs with like_action
+        return [await self._idiom_to_dto(i, user_id, user_likes_map) for i in idioms]
 
     async def update_idiom(self, idiom_id: str, update_data: dict, user: User) -> Optional[IdiomResponseDTO]:
         """Update an idiom. User must be the owner."""
@@ -255,6 +268,80 @@ class SubtitlePairService:
 
         updated = await self.idiom_repo.update(idiom_id, idiom_update)
         return updated is not None
+
+    async def handle_idiom_like(
+        self,
+        idiom_id: str,
+        action: str,
+        user: User
+    ) -> IdiomLikeResponseDTO:
+        """
+        Handle like/dislike/remove action on an idiom.
+
+        Args:
+            idiom_id: ID of the idiom
+            action: "like", "dislike", or "remove"
+            user: Current authenticated user
+
+        Returns:
+            IdiomLikeResponseDTO with updated counts
+        """
+        # Validate action
+        if action not in ["like", "dislike", "remove"]:
+            raise ValueError("Action must be 'like', 'dislike', or 'remove'")
+
+        # Check if idiom exists
+        idiom = await self.idiom_repo.get_by_id(idiom_id)
+        if not idiom:
+            raise ValueError("Idiom not found")
+
+        # Users cannot like/dislike their own idioms
+        if idiom.user_id == user.id:
+            raise ValueError("You cannot like/dislike your own idioms")
+
+        # Get existing like/dislike
+        existing_like = await self.idiom_like_repo.get_by_user_and_idiom(user.id, idiom_id)
+
+        user_action = None
+
+        if action == "remove":
+            # Remove existing like/dislike
+            if existing_like:
+                await self.idiom_like_repo.delete(existing_like.id)
+        elif action in ["like", "dislike"]:
+            if existing_like:
+                # Update existing like/dislike if different
+                if existing_like.type != action:
+                    await self.idiom_like_repo.update(existing_like.id, action)
+                    user_action = action
+                else:
+                    # Same action - toggle (remove)
+                    await self.idiom_like_repo.delete(existing_like.id)
+                    user_action = None
+            else:
+                # Create new like/dislike
+                new_like = IdiomLike(
+                    id=None,
+                    user_id=user.id,
+                    idiom_id=idiom_id,
+                    type=action
+                )
+                await self.idiom_like_repo.create(new_like)
+                user_action = action
+
+        # Recalculate likes and dislikes counts
+        likes_count = await self.idiom_like_repo.count_by_type(idiom_id, "like")
+        dislikes_count = await self.idiom_like_repo.count_by_type(idiom_id, "dislike")
+
+        # Update idiom with new counts
+        await self.idiom_repo.update_likes(idiom_id, likes_count, dislikes_count)
+
+        return IdiomLikeResponseDTO(
+            success=True,
+            likes=likes_count,
+            dislikes=dislikes_count,
+            user_action=user_action
+        )
 
     async def get_recent_quotes(self, limit: int = 10) -> List[QuoteResponseDTO]:
         """Get recent quotes."""
@@ -329,11 +416,26 @@ class SubtitlePairService:
             seq_id=pair.seq_id
         )
 
-    async def _idiom_to_dto(self, idiom: Idiom) -> IdiomResponseDTO:
-        """Convert idiom entity to DTO with username."""
+    async def _idiom_to_dto(
+        self,
+        idiom: Idiom,
+        current_user_id: Optional[str] = None,
+        user_likes_map: Optional[dict] = None
+    ) -> IdiomResponseDTO:
+        """Convert idiom entity to DTO with username, likes, dislikes, and like_action."""
         # Fetch username
         user = await self.user_repo.get_by_id(idiom.user_id)
         username = user.username if user else "Unknown"
+
+        # Determine like_action
+        like_action = None
+        if current_user_id:
+            if idiom.user_id == current_user_id:
+                # User's own idiom - not applicable
+                like_action = "not_applicable"
+            elif user_likes_map and idiom.id in user_likes_map:
+                # User has liked/disliked this idiom
+                like_action = user_likes_map[idiom.id]
 
         return IdiomResponseDTO(
             _id=idiom.id,
@@ -345,6 +447,10 @@ class SubtitlePairService:
             explanation=idiom.explanation,
             source=idiom.source,
             status=idiom.status,
+            ai_score=idiom.ai_score,
+            likes=idiom.likes,
+            dislikes=idiom.dislikes,
+            like_action=like_action,
             created_at=idiom.created_at,
             updated_at=idiom.updated_at
         )

@@ -36,8 +36,26 @@ class Idiom:
     source: Optional[str] = None
     status: str = "draft"  # draft, published, deleted
     ai_score: Optional[int] = None
+    likes: int = 0
+    dislikes: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+@dataclass
+class IdiomLike:
+    """Domain entity for idiom likes/dislikes."""
+    id: Optional[str]
+    user_id: str
+    idiom_id: str
+    type: str  # "like" or "dislike"
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    def __post_init__(self):
+        """Validate entity invariants."""
+        if self.type not in ["like", "dislike"]:
+            raise ValueError("Type must be 'like' or 'dislike'")
 
 
 @dataclass

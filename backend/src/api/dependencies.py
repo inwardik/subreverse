@@ -10,6 +10,7 @@ from infrastructure.database.mongodb import (
 from infrastructure.database.postgres import (
     PostgreSQLUserRepository,
     PostgreSQLIdiomRepository,
+    PostgreSQLIdiomLikeRepository,
     PostgreSQLConnection
 )
 from infrastructure.database.subtitle_mongo_repo import (
@@ -26,6 +27,7 @@ from domain.interfaces import (
     IJWTHandler,
     ISubtitlePairRepository,
     IIdiomRepository,
+    IIdiomLikeRepository,
     IQuoteRepository,
     IStatsRepository,
     ISearchEngine
@@ -238,6 +240,15 @@ async def get_idiom_repository() -> AsyncGenerator[IIdiomRepository, None]:
         yield PostgreSQLIdiomRepository(session)
 
 
+async def get_idiom_like_repository() -> AsyncGenerator[IIdiomLikeRepository, None]:
+    """Dependency injection for idiom like repository."""
+    if not _postgres_connection:
+        raise RuntimeError("PostgreSQL connection not initialized")
+
+    async for session in _postgres_connection.get_session():
+        yield PostgreSQLIdiomLikeRepository(session)
+
+
 async def get_quote_repository() -> IQuoteRepository:
     """Dependency injection for quote repository."""
     if not _mongodb_connection:
@@ -262,6 +273,7 @@ async def get_search_engine() -> Optional[ISearchEngine]:
 async def get_subtitle_service(
     pair_repo: ISubtitlePairRepository = Depends(get_subtitle_pair_repository),
     idiom_repo: IIdiomRepository = Depends(get_idiom_repository),
+    idiom_like_repo: IIdiomLikeRepository = Depends(get_idiom_like_repository),
     quote_repo: IQuoteRepository = Depends(get_quote_repository),
     stats_repo: IStatsRepository = Depends(get_stats_repository),
     user_repo: IUserRepository = Depends(get_user_repository),
@@ -271,6 +283,7 @@ async def get_subtitle_service(
     return SubtitlePairService(
         pair_repo=pair_repo,
         idiom_repo=idiom_repo,
+        idiom_like_repo=idiom_like_repo,
         quote_repo=quote_repo,
         stats_repo=stats_repo,
         user_repo=user_repo,
