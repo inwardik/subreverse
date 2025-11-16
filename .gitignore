@@ -1,4 +1,5 @@
 /backend/.env
+/utils/.env
 /certs/fullchain.pem
 /certs/privkey.pem
 /.idea/
