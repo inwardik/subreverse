@@ -7,8 +7,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN pip install --no-cache-dir "fastapi==0.109.0" "uvicorn[standard]==0.27.0" "pydantic==2.5.3" "pydantic-settings==2.1.0" "motor==3.6.0" "sqlalchemy[asyncio]==2.0.25" "asyncpg==0.29.0" "elasticsearch[async]==8.11.1" "python-dotenv==1.0.0" "python-multipart==0.0.12"
+# Install runtime dependencies including alembic for migrations
+RUN pip install --no-cache-dir \
+    "fastapi==0.109.0" \
+    "uvicorn[standard]==0.27.0" \
+    "pydantic==2.5.3" \
+    "pydantic-settings==2.1.0" \
+    "motor==3.6.0" \
+    "sqlalchemy[asyncio]==2.0.25" \
+    "asyncpg==0.29.0" \
+    "elasticsearch[async]==8.11.1" \
+    "python-dotenv==1.0.0" \
+    "python-multipart==0.0.12" \
+    "alembic==1.13.1"
 
 # Copy application code
 COPY backend /app/backend
@@ -16,4 +27,5 @@ COPY frontend /app/frontend
 
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use entrypoint script to run migrations before starting the app
+ENTRYPOINT ["/app/backend/entrypoint.sh"]
