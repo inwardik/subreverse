@@ -629,7 +629,6 @@ function IdiomsView() {
   const [error, setError] = useState('')
   const [editingIdiom, setEditingIdiom] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
-  const [reactions, setReactions] = useState({})
 
   useEffect(() => {
     try {
@@ -693,17 +692,59 @@ function IdiomsView() {
     window.location.hash = `#/search?q=${encodeURIComponent(title)}`
   }
 
-  const handleReaction = (idiomId, type) => {
-    setReactions(prev => {
-      const current = prev[idiomId] || { likes: 0, dislikes: 0 }
-      return {
-        ...prev,
-        [idiomId]: {
-          likes: type === 'like' ? current.likes + 1 : current.likes,
-          dislikes: type === 'dislike' ? current.dislikes + 1 : current.dislikes
-        }
+  const handleReaction = async (idiom, type) => {
+    // Check if user is authenticated
+    if (!currentUser) {
+      alert('Please login to like/dislike idioms')
+      return
+    }
+
+    // Check if it's user's own idiom
+    if (idiom.user_id === currentUser.id) {
+      return // Do nothing for own idioms
+    }
+
+    // Determine action based on current state
+    let action = type
+    if (idiom.like_action === type) {
+      // Clicking the same button - toggle (remove)
+      action = 'remove'
+    }
+
+    try {
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+      const res = await fetch(`/api/idioms/${idiom._id}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${auth.token}`
+        },
+        body: JSON.stringify({ action })
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Unknown error' }))
+        throw new Error(error.detail || `HTTP ${res.status}`)
       }
-    })
+
+      const data = await res.json()
+
+      // Update the idiom in the list with new counts and user_action
+      setItems(prev => prev.map(item => {
+        if (item._id === idiom._id) {
+          return {
+            ...item,
+            likes: data.likes,
+            dislikes: data.dislikes,
+            like_action: data.user_action
+          }
+        }
+        return item
+      }))
+    } catch (e) {
+      console.error('Error handling reaction:', e)
+      alert(e.message || 'Failed to submit reaction')
+    }
   }
 
   if (loading) return <div>Loading idioms...</div>
@@ -716,7 +757,9 @@ function IdiomsView() {
         {items.map((it, idx) => {
           const isOwner = currentUser && currentUser.id === it.user_id
           const canEdit = isOwner && (it.status === 'draft' || it.status === 'published')
-          const currentReactions = reactions[it._id] || { likes: 0, dislikes: 0 }
+          const canLike = it.like_action !== 'not_applicable'
+          const likeActive = it.like_action === 'like'
+          const dislikeActive = it.like_action === 'dislike'
 
           return (
             <div
@@ -799,18 +842,34 @@ function IdiomsView() {
               }}>
                 {/* Like/Dislike buttons */}
                 <span
-                  onClick={() => handleReaction(it._id, 'like')}
-                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
-                  title="Like"
+                  onClick={() => canLike && handleReaction(it, 'like')}
+                  style={{
+                    cursor: canLike ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    opacity: canLike ? 1 : 0.4,
+                    color: likeActive ? '#4a9eff' : 'inherit',
+                    fontWeight: likeActive ? 'bold' : 'normal'
+                  }}
+                  title={canLike ? (likeActive ? 'Remove like' : 'Like') : 'Cannot like own idiom'}
                 >
-                  👍 {currentReactions.likes}
+                  👍 {it.likes || 0}
                 </span>
                 <span
-                  onClick={() => handleReaction(it._id, 'dislike')}
-                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 2 }}
-                  title="Dislike"
+                  onClick={() => canLike && handleReaction(it, 'dislike')}
+                  style={{
+                    cursor: canLike ? 'pointer' : 'not-allowed',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    opacity: canLike ? 1 : 0.4,
+                    color: dislikeActive ? '#ff6b6b' : 'inherit',
+                    fontWeight: dislikeActive ? 'bold' : 'normal'
+                  }}
+                  title={canLike ? (dislikeActive ? 'Remove dislike' : 'Dislike') : 'Cannot dislike own idiom'}
                 >
-                  👎 {currentReactions.dislikes}
+                  👎 {it.dislikes || 0}
                 </span>
 
                 <span>·</span>
