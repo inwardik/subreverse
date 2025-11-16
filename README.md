@@ -303,6 +303,46 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 - Set strong PostgreSQL credentials
 - Set strong MongoDB credentials
 
+## 🛠️ Utilities
+
+### Subtitle Quality Evaluation (`utils/evaluate.py`)
+
+A command-line tool to assess the quality of subtitle pairs using LLM models before importing them into the database.
+
+**Features**:
+- Parses SRT files using the same logic as the main application
+- Randomly samples N pairs for evaluation
+- Scores each pair on a 1-10 scale using AI
+- Supports both cloud (OpenRouter) and local (LMStudio) LLM providers
+
+**Quick Start**:
+```bash
+cd utils
+pip install -r requirements.txt
+
+# Using OpenRouter (cloud API)
+export OPENROUTER_API_KEY="sk-or-v1-..."
+python evaluate.py movie_en.srt movie_ru.srt 10 --provider openrouter
+
+# Using LMStudio (local model)
+python evaluate.py movie_en.srt movie_ru.srt 10 --provider lmstudio
+```
+
+**Example Output**:
+```
+📊 EVALUATION RESULTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 Individual Scores: [9, 10, 8, 7, 9, 10, 8, 9, 8, 9]
+
+📈 Statistics:
+   Average Score: 8.70/10
+   Min Score: 7/10
+   Max Score: 10/10
+   Overall Quality: Excellent ⭐⭐⭐
+```
+
+For detailed documentation, see [utils/README.md](utils/README.md)
+
 ## 🐛 Troubleshooting
 
 ### Elasticsearch not working
