@@ -433,7 +433,11 @@ make clean
 
 ### Database Migrations
 
-**SubReverse uses Alembic for PostgreSQL schema migrations.** All migration commands are available via Makefile:
+**SubReverse uses Alembic for PostgreSQL schema migrations.**
+
+**🚀 Automatic Migrations in Docker**: When you start the backend container using `docker-compose up`, migrations are automatically applied before the application starts. This ensures your database schema is always up-to-date.
+
+All migration commands are available via Makefile for local development:
 
 ```bash
 # Run pending migrations (apply all unapplied migrations)
@@ -477,9 +481,11 @@ alembic upgrade head
 - Initial schema migration: `001_initial_schema.py`
 
 **Environment Configuration**:
+- **Docker/Production**: Migrations run automatically via `backend/entrypoint.sh`
 - Alembic uses `POSTGRES_URL` from environment (if set)
 - Falls back to URL in `backend/alembic.ini`
 - Format: `postgresql+asyncpg://user:password@host:port/database`
+- Manual migration in Docker: `docker-compose exec backend alembic upgrade head`
 
 ---
 

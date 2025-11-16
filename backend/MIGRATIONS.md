@@ -2,7 +2,18 @@
 
 SubReverse uses **Alembic** for PostgreSQL schema migrations.
 
-## Quick Start
+## Automatic Migrations in Docker
+
+**Good news!** When you start the backend container using `docker-compose up`, migrations are **automatically applied** before the application starts.
+
+The backend container:
+1. Waits for PostgreSQL to be ready
+2. Runs `alembic upgrade head` to apply all pending migrations
+3. Starts the FastAPI application
+
+This ensures your database schema is always up-to-date in production and development environments.
+
+## Quick Start (Local Development)
 
 ### Apply All Pending Migrations
 
@@ -107,11 +118,19 @@ Alembic uses the following to determine the database URL (in order):
 
 ### For Docker/Production
 
-Set the `POSTGRES_URL` environment variable:
+**Migrations run automatically** when the backend container starts via `entrypoint.sh`.
+
+The `POSTGRES_URL` environment variable is set in `docker-compose.yml`:
+
+```yaml
+environment:
+  - POSTGRES_URL=postgresql+asyncpg://subreverse:subreverse@postgres:5432/subreverse
+```
+
+If you need to run migrations manually in Docker:
 
 ```bash
-export POSTGRES_URL=postgresql+asyncpg://user:password@host:port/database
-make migrate
+docker-compose exec backend alembic upgrade head
 ```
 
 ### For Local Development
