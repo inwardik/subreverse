@@ -40,7 +40,7 @@ SubReverse is built with modern technologies and clean architecture principles:
   - PostgreSQL (user management with SQLAlchemy ORM)
   - MongoDB (subtitle pairs, idioms, quotes)
 - **Search Engine**: Elasticsearch for full-text search
-- **Deployment**: Docker Compose with Nginx reverse proxy
+- **Deployment**: Docker Compose with Traefik reverse proxy (supports multiple projects)
 
 ## 🚀 Quick Start
 
@@ -63,15 +63,34 @@ SubReverse is built with modern technologies and clean architecture principles:
    # Edit .env and set your JWT_SECRET and other configurations
    ```
 
-3. **Start the application**
+3. **Set up Traefik (reverse proxy)**
+
+   SubReverse uses Traefik for routing and automatic SSL certificates. For local development, you can skip this and access services directly. For production deployment with multiple projects, follow [TRAEFIK.md](TRAEFIK.md).
+
+   Quick local setup:
+   ```bash
+   # Create external network
+   docker network create traefik-public
+
+   # Optional: Set up Traefik for production
+   # See TRAEFIK.md for detailed instructions
+   ```
+
+4. **Start the application**
    ```bash
    docker-compose up -d
    ```
 
-4. **Access the application**
-   - Frontend: https://localhost (or http://localhost:80)
+5. **Access the application**
+
+   **Local development** (without Traefik):
+   - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
+
+   **Production** (with Traefik):
+   - Application: https://subreverse.fun (or your configured domain)
+   - All traffic routed through Traefik with automatic HTTPS
 
 ### First Steps
 
@@ -197,7 +216,8 @@ subreverse/
 │   │   └── App.jsx     # Main application
 │   └── package.json
 ├── docker-compose.yml   # Service orchestration
-└── nginx.conf          # Reverse proxy configuration
+├── traefik-compose.example.yml  # Traefik reverse proxy example
+└── TRAEFIK.md          # Traefik setup guide
 ```
 
 ## 🎯 API Endpoints
@@ -263,9 +283,10 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 - **postgres**: PostgreSQL 15 Alpine on port 5432
 - **mongo**: MongoDB 4.4.18 on port 27017
 - **elasticsearch**: Elasticsearch 8.14.3 on port 9200
-- **backend**: FastAPI on port 8000
-- **frontend**: Vite dev server on port 5173
-- **nginx**: Reverse proxy on ports 80/443
+- **backend**: FastAPI (routed by Traefik)
+- **frontend**: Vite dev server (routed by Traefik)
+
+**Note**: Traefik reverse proxy runs separately and routes traffic to all projects. See [TRAEFIK.md](TRAEFIK.md) for setup instructions.
 
 ## 🎮 Game Mechanics
 
@@ -299,7 +320,7 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 - Change `JWT_SECRET` to a strong random value
 - Enable Elasticsearch security
 - Configure CORS to allow only your domain
-- Use HTTPS (nginx.conf includes SSL configuration)
+- Use HTTPS (Traefik provides automatic SSL certificates via Let's Encrypt - see [TRAEFIK.md](TRAEFIK.md))
 - Set strong PostgreSQL credentials
 - Set strong MongoDB credentials
 
