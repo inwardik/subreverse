@@ -1,0 +1,86 @@
+# Traefik Docker Compose Configuration
+# This file should be placed in a separate directory (e.g., /opt/traefik or ~/traefik)
+# and used to run a shared Traefik instance for all projects on the server.
+#
+# Usage:
+#   1. Copy this file to /opt/traefik/docker-compose.yml (or your preferred location)
+#   2. Update LETSENCRYPT_EMAIL with your email address
+#   3. Create the external network: docker network create traefik-public
+#   4. Run: docker-compose up -d
+#
+# Note: This Traefik instance will automatically discover and route traffic to all
+# containers with appropriate Traefik labels on the traefik-public network.
+
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # HTTP port
+      - "80:80"
+      # HTTPS port
+      - "443:443"
+      # Traefik dashboard (optional, comment out in production)
+      - "8080:8080"
+    environment:
+      # Set your email for Let's Encrypt notifications
+      - LETSENCRYPT_EMAIL=your-email@example.com
+    command:
+      # Enable Docker provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=traefik-public"
+
+      # Define entrypoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Enable Let's Encrypt (ACME)
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+
+      # Uncomment for Let's Encrypt staging (testing)
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+
+      # Enable dashboard (optional, remove in production or protect with auth)
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+
+      # Enable access logs (optional)
+      # - "--accesslog=true"
+      # - "--accesslog.filepath=/var/log/traefik/access.log"
+
+      # Enable Traefik logs
+      - "--log.level=INFO"
+    volumes:
+      # Docker socket to discover containers
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Let's Encrypt certificates storage
+      - ./letsencrypt:/letsencrypt
+      # Logs (optional)
+      # - ./logs:/var/log/traefik
+    networks:
+      - traefik-public
+    labels:
+      # Global HTTP to HTTPS redirect middleware
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
+
+      # Traefik dashboard route (optional, protect in production)
+      # - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.yourdomain.com`)"
+      # - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      # - "traefik.http.routers.traefik-dashboard.tls=true"
+      # - "traefik.http.routers.traefik-dashboard.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.traefik-dashboard.service=api@internal"
+
+networks:
+  traefik-public:
+    external: true

@@ -38,30 +38,48 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    container_name: backend
+    container_name: subreverse_backend
     environment:
       - MONGODB_URL=mongodb://mongo:27017/
       - MONGODB_DB_NAME=subtitles
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - ELASTICSEARCH_INDEX=subtitles
       - POSTGRES_URL=postgresql+asyncpg://subreverse:subreverse@postgres:5432/subreverse
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     restart: unless-stopped
     depends_on:
       - mongo
       - elasticsearch
       - postgres
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+
+      # Backend router for API endpoints
+      - "traefik.http.routers.subreverse-backend.rule=Host(`subreverse.fun`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/health`) || PathPrefix(`/search`) || PathPrefix(`/upload_file`) || PathPrefix(`/upload_zip`) || PathPrefix(`/clear`) || PathPrefix(`/index_elastic_search`) || PathPrefix(`/get_random`) || PathPrefix(`/delete_all`) || PathPrefix(`/export`) || PathPrefix(`/import_ndjson`) || PathPrefix(`/stats`))"
+      - "traefik.http.routers.subreverse-backend.entrypoints=websecure"
+      - "traefik.http.routers.subreverse-backend.tls=true"
+      - "traefik.http.routers.subreverse-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.subreverse-backend.loadbalancer.server.port=8000"
+
+      # HTTP to HTTPS redirect for backend
+      - "traefik.http.routers.subreverse-backend-http.rule=Host(`subreverse.fun`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/health`) || PathPrefix(`/search`) || PathPrefix(`/upload_file`) || PathPrefix(`/upload_zip`) || PathPrefix(`/clear`) || PathPrefix(`/index_elastic_search`) || PathPrefix(`/get_random`) || PathPrefix(`/delete_all`) || PathPrefix(`/export`) || PathPrefix(`/import_ndjson`) || PathPrefix(`/stats`))"
+      - "traefik.http.routers.subreverse-backend-http.entrypoints=web"
+      - "traefik.http.routers.subreverse-backend-http.middlewares=redirect-to-https"
 
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: frontend
+    container_name: subreverse_frontend
     environment:
       - BACKEND_URL=http://backend:8000
-    ports:
-      - "5173:5173"
+    expose:
+      - "5173"
     depends_on:
       - backend
     volumes:
@@ -70,25 +88,30 @@ services:
       - ./frontend/index.html:/app/index.html
       - ./frontend/vite.config.js:/app/vite.config.js
     restart: unless-stopped
+    networks:
+      - default
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
 
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: unless-stopped
-    depends_on:
-      - frontend
-      - backend
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
-      - ./certs/privkey.pem:/etc/ssl/private/privkey.pem:ro
+      # Frontend router for all other requests
+      - "traefik.http.routers.subreverse-frontend.rule=Host(`subreverse.fun`)"
+      - "traefik.http.routers.subreverse-frontend.entrypoints=websecure"
+      - "traefik.http.routers.subreverse-frontend.tls=true"
+      - "traefik.http.routers.subreverse-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.subreverse-frontend.priority=1"
+      - "traefik.http.services.subreverse-frontend.loadbalancer.server.port=5173"
+
+      # HTTP to HTTPS redirect for frontend
+      - "traefik.http.routers.subreverse-frontend-http.rule=Host(`subreverse.fun`)"
+      - "traefik.http.routers.subreverse-frontend-http.entrypoints=web"
+      - "traefik.http.routers.subreverse-frontend-http.middlewares=redirect-to-https"
 volumes:
   mongo_data:
   es_data:
   postgres_data:
-  auto_ssl_data:
+
+networks:
+  traefik-public:
+    external: true

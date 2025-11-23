@@ -61,7 +61,8 @@
 │   └── main.jsx            # Entry point
 ├── Makefile                # Build commands (test, migrate, etc.)
 ├── docker-compose.yml      # Full stack orchestration
-└── nginx.conf             # Reverse proxy configuration
+├── traefik-compose.example.yml  # Traefik reverse proxy example
+└── TRAEFIK.md             # Traefik setup guide
 ```
 
 ---
@@ -375,9 +376,10 @@ JWT_EXPIRE_SECONDS=604800  # 7 days
 - **postgres**: Port 5432 (PostgreSQL 15 Alpine)
 - **mongo**: Port 27017 (MongoDB 4.4.18)
 - **elasticsearch**: Port 9200 (Elasticsearch 8.14.3, security disabled for dev)
-- **backend**: Port 8000 (FastAPI)
-- **frontend**: Port 5173 (Vite dev server)
-- **nginx**: Ports 80/443 (HTTPS configured)
+- **backend**: FastAPI (routed by Traefik in production)
+- **frontend**: Vite dev server (routed by Traefik in production)
+
+**Note**: Traefik reverse proxy runs separately and provides automatic HTTPS via Let's Encrypt. See TRAEFIK.md for setup.
 
 ---
 
